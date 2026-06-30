@@ -100,7 +100,7 @@ export function buildApp(opts?: AppOptions): FastifyInstance {
 
     // Limit
     const limit = parseInt(query.limit ?? '50', 10)
-    result = result.slice(0, Math.min(limit, 100))
+    result = result.slice(0, Math.min(limit, 500))
 
     return result
   })

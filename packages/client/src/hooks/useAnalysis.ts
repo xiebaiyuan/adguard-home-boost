@@ -18,23 +18,21 @@ function autoRefresh(): Promise<void> {
   const pass = localStorage.getItem('adgh_pass')
   if (!url || !user || !pass) return Promise.resolve()
 
-  // Restore backend config from localStorage
+  const cfg = {
+    baseUrl: url.replace(/\/$/, ''),
+    username: user,
+    password: pass,
+    rejectUnauthorized: false,
+  }
+
   return fetch(`${API_BASE}/api/config`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      adguardConfig: {
-        baseUrl: url.replace(/\/$/, ''),
-        username: user,
-        password: pass,
-        rejectUnauthorized: false,
-      },
-    }),
-  }).then(res => {
-    if (!res.ok) return
-    // Now trigger data refresh
-    return fetch(`${API_BASE}/api/analysis/refresh`, { method: 'POST' }).catch(() => {})
-  }).catch(() => {})
+    body: JSON.stringify({ adguardConfig: cfg }),
+  })
+    .then(() => fetch(`${API_BASE}/api/analysis/refresh`, { method: 'POST' }))
+    .then(() => {/* done */})
+    .catch(() => {/* ignore */})
 }
 
 export function useAnalysis(): UseAnalysisResult {
@@ -49,7 +47,7 @@ export function useAnalysis(): UseAnalysisResult {
     try {
       const [summaryRes, domainsRes] = await Promise.all([
         fetch(`${API_BASE}/api/analysis/summary`),
-        fetch(`${API_BASE}/api/analysis/domains`),
+        fetch(`${API_BASE}/api/analysis/domains?limit=500`),
       ])
 
       if (!summaryRes.ok || !domainsRes.ok) {

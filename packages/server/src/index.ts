@@ -1,5 +1,8 @@
 import { config } from 'dotenv'
-config()
+import { resolve, dirname } from 'path'
+import { fileURLToPath } from 'url'
+const __dirname = dirname(fileURLToPath(import.meta.url))
+config({ path: resolve(__dirname, '../../../.env') })
 
 import { buildApp } from './app'
 import type { AdguardConfig } from './adguard/client'
