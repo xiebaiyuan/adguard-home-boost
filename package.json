@@ -1,0 +1,13 @@
+{
+  "name": "adguardhome-dns-latency",
+  "private": true,
+  "workspaces": ["packages/*", "shared"],
+  "scripts": {
+    "dev": "concurrently --names server,client --prefix-colors blue,green \"npm run dev -w @adgh/server\" \"npm run dev -w client\"",
+    "build": "npm run build -w @adgh/server && npm run build -w client",
+    "test": "npm run test -w @adgh/server"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

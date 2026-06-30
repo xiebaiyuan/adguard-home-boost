@@ -1,0 +1,1 @@
+- [AdGuardHome DNS Latency Analysis](CONTEXT.md) — Domain glossary and design decisions

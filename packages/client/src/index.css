@@ -1,0 +1,126 @@
+@import "tailwindcss";
+
+/* Dashboard color system — glass data-panel style */
+:root {
+  --c-bg: oklch(0.975 0.005 260);
+  --c-bg-elevated: oklch(0.995 0 0);
+  --c-glass: oklch(1 0 0 / 0.72);
+  --c-glass-border: oklch(0 0 0 / 0.06);
+  --c-text: oklch(0.15 0.01 260);
+  --c-text-secondary: oklch(0.45 0.02 260);
+  --c-border: oklch(0.88 0.005 260);
+  --c-accent: oklch(0.55 0.22 260);
+  --c-accent-soft: oklch(0.55 0.22 260 / 0.08);
+  --c-accent-gradient: linear-gradient(135deg, oklch(0.55 0.22 260), oklch(0.48 0.18 290));
+  --c-success: oklch(0.55 0.18 150);
+  --c-warning: oklch(0.68 0.16 75);
+  --c-danger: oklch(0.58 0.22 27);
+  color-scheme: light;
+}
+
+.dark {
+  --c-bg: oklch(0.12 0.01 260);
+  --c-bg-elevated: oklch(0.16 0.01 260);
+  --c-glass: oklch(0.2 0.015 260 / 0.65);
+  --c-glass-border: oklch(1 1 1 / 0.08);
+  --c-text: oklch(0.92 0.005 260);
+  --c-text-secondary: oklch(0.55 0.015 260);
+  --c-border: oklch(0.24 0.01 260);
+  --c-accent: oklch(0.68 0.18 258);
+  --c-accent-soft: oklch(0.68 0.18 258 / 0.1);
+  --c-accent-gradient: linear-gradient(135deg, oklch(0.68 0.18 258), oklch(0.55 0.2 285));
+  --c-success: oklch(0.7 0.17 150);
+  --c-warning: oklch(0.78 0.18 70);
+  --c-danger: oklch(0.72 0.19 27);
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--c-bg);
+  color: var(--c-text);
+  transition: background-color 0.3s ease, color 0.2s ease;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100dvh;
+}
+
+/* Glass card utility */
+.glass-card {
+  background: var(--c-glass);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--c-glass-border);
+  box-shadow: 0 1px 3px oklch(0 0 0 / 0.04), 0 1px 2px oklch(0 0 0 / 0.02);
+}
+
+.dark .glass-card {
+  box-shadow: 0 1px 3px oklch(0 0 0 / 0.2), 0 1px 2px oklch(0 0 0 / 0.1);
+}
+
+/* Accent gradient text */
+.gradient-text {
+  background: var(--c-accent-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Subtle row hover */
+.table-row-hover {
+  transition: background-color 0.12s ease;
+}
+
+.table-row-hover:hover {
+  background: var(--c-accent-soft);
+}
+
+/* KPI card gradient accent */
+.kpi-gradient-1 {
+  background: linear-gradient(135deg, oklch(0.55 0.22 260 / 0.08), oklch(0.55 0.22 260 / 0.02));
+}
+.kpi-gradient-2 {
+  background: linear-gradient(135deg, oklch(0.55 0.18 150 / 0.08), oklch(0.55 0.18 150 / 0.02));
+}
+.kpi-gradient-3 {
+  background: linear-gradient(135deg, oklch(0.68 0.16 75 / 0.08), oklch(0.68 0.16 75 / 0.02));
+}
+.kpi-gradient-4 {
+  background: linear-gradient(135deg, oklch(0.58 0.22 27 / 0.08), oklch(0.58 0.22 27 / 0.02));
+}
+
+/* Type dot indicator */
+.type-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-right: 4px;
+}
+
+/* Animations */
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+  animation: fadeSlideUp 0.3s ease-out;
+}
+
+/* Scrollbar subtle */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--c-border);
+  border-radius: 3px;
+}
