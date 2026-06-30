@@ -190,7 +190,15 @@ function ExpandedDetail({ domain }: { domain: string }) {
       .catch(() => setLoading(false))
   }, [domain])
 
-  if (loading) return <div className="px-4 pb-3 pt-1"><span className="text-xs" style={{ color: 'var(--c-text-secondary)' }}>加载中...</span></div>
+  if (loading) return (
+    <tr key={`${domain}-detail`}>
+      <td colSpan={10} className="border-0 p-0">
+        <div className="animate-pulse px-4 pb-3 pt-1">
+          <div className="min-h-[120px] rounded-lg p-4" style={{ background: 'var(--c-accent-soft)', border: '1px solid var(--c-border)' }} />
+        </div>
+      </td>
+    </tr>
+  )
   if (!data) return null
 
   // Collect unique answers across all entries
