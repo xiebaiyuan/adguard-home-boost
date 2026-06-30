@@ -3,8 +3,8 @@
   "private": true,
   "workspaces": ["packages/*", "shared"],
   "scripts": {
-    "dev": "concurrently --names server,client --prefix-colors blue,green \"npm run dev -w @adgh/server\" \"npm run dev -w client\"",
-    "build": "npm run build -w @adgh/server && npm run build -w client",
+    "dev": "concurrently --names server,dash --prefix-colors blue,green \"npm run dev -w @adgh/server\" \"npm run dev -w @adgh/dashboard\"",
+    "build": "npm run build -w @adgh/server && npm run build -w @adgh/dashboard",
     "test": "npm run test -w @adgh/server"
   },
   "devDependencies": {

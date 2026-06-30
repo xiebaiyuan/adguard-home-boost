@@ -1,5 +1,5 @@
 {
-  "name": "client",
+  "name": "@adgh/dashboard",
   "private": true,
   "version": "0.1.0",
   "description": "AdGuardHome DNS 延时分析前端仪表盘",
