@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { MagnifyingGlass, ArrowDown, ArrowUp, CaretDown, CaretUp } from '@phosphor-icons/react'
 import type { DomainStats } from '../lib/types'
 
@@ -178,6 +178,106 @@ export function DomainTable({ domains }: DomainTableProps) {
 }
 
 // Individual row with optional expanded detail
+function ExpandedDetail({ domain }: { domain: string }) {
+  const [data, setData] = useState<{ domain: string; entries: Array<{ time: string; type: string; answer: Array<{ type: string; value: string }>; elapsedMs: number; cached: boolean; status: string }>; upstreams: Array<{ upstream: string; count: number; avg: number }> } | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    setLoading(true)
+    fetch(`/api/analysis/domains/${encodeURIComponent(domain)}`)
+      .then(r => r.json())
+      .then(d => { setData(d); setLoading(false) })
+      .catch(() => setLoading(false))
+  }, [domain])
+
+  if (loading) return <div className="px-4 pb-3 pt-1"><span className="text-xs" style={{ color: 'var(--c-text-secondary)' }}>加载中...</span></div>
+  if (!data) return null
+
+  // Collect unique answers across all entries
+  const answerMap = new Map<string, { type: string; count: number }>()
+  for (const e of data.entries) {
+    for (const a of e.answer ?? []) {
+      const key = `${a.type}:${a.value}`
+      const existing = answerMap.get(key)
+      if (existing) existing.count++
+      else answerMap.set(key, { type: a.type, count: 1 })
+    }
+  }
+  const answers = Array.from(answerMap.entries()).sort((a, b) => b[1].count - a[1].count)
+
+  return (
+    <tr key={`${domain}-detail`}>
+      <td colSpan={10} className="border-0 p-0">
+        <div className="px-4 pb-3 pt-1">
+          <div className="rounded-lg p-4 text-xs" style={{ background: 'var(--c-accent-soft)', border: '1px solid var(--c-border)' }}>
+            {/* Resolved addresses */}
+            {answers.length > 0 && (
+              <>
+                <div className="mb-1.5 font-medium" style={{ color: 'var(--c-text-secondary)' }}>解析结果</div>
+                <div className="mb-3 flex flex-wrap gap-1.5">
+                  {answers.map(([key, val]) => (
+                    <span
+                      key={key}
+                      className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 font-mono"
+                      style={{ background: 'var(--c-bg)', border: '1px solid var(--c-border)' }}
+                    >
+                      <span className="text-[10px] font-medium uppercase tracking-wider" style={{ color: 'var(--c-accent)' }}>{val.type}</span>
+                      <span>{key.split(':')[1]}</span>
+                      <span className="text-[10px]" style={{ color: 'var(--c-text-secondary)' }}>×{val.count}</span>
+                    </span>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {/* Upstream breakdown */}
+            {data.upstreams.length > 0 && (
+              <>
+                <div className="mb-1.5 font-medium" style={{ color: 'var(--c-text-secondary)' }}>上游服务器</div>
+                <div className="mb-3 space-y-0.5">
+                  {data.upstreams.map(u => (
+                    <div key={u.upstream} className="flex items-center gap-3">
+                      <span className="max-w-[200px] truncate font-mono text-[11px]">{u.upstream}</span>
+                      <span style={{ color: 'var(--c-text-secondary)' }}>{u.count} 次</span>
+                      <span style={{ color: 'var(--c-text-secondary)' }}>均 {u.avg}ms</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {/* Recent entries */}
+            <div className="mb-1.5 font-medium" style={{ color: 'var(--c-text-secondary)' }}>最近查询</div>
+            <div className="max-h-32 overflow-y-auto space-y-0.5">
+              {data.entries.slice(0, 20).map((e, i) => (
+                <div key={i} className="flex items-center gap-2 text-[11px]">
+                  <span className="w-16 shrink-0 font-mono" style={{ color: 'var(--c-text-secondary)' }}>
+                    {new Date(e.time).toLocaleTimeString()}
+                  </span>
+                  <span className="w-12 shrink-0 font-mono" style={{ color: e.elapsedMs > 500 ? 'var(--c-danger)' : 'inherit' }}>
+                    {e.elapsedMs.toFixed(0)}ms
+                  </span>
+                  <span className="w-12 shrink-0 font-mono text-[10px]" style={{ color: 'var(--c-text-secondary)' }}>
+                    {e.type}
+                  </span>
+                  {e.answer?.length > 0 && (
+                    <span className="truncate font-mono" style={{ color: 'var(--c-text-secondary)' }}>
+                      {e.answer.map(a => a.value).join(', ')}
+                    </span>
+                  )}
+                  {!e.answer?.length && (
+                    <span className="italic" style={{ color: 'var(--c-text-secondary)' }}>{e.status}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </td>
+    </tr>
+  )
+}
+
 function TableRow({
   stats: d,
   expanded,
@@ -236,37 +336,7 @@ function TableRow({
         <td className={cell} style={slowStyle(d.uncached.max)}>{fmtMs(d.uncached.max)}</td>
       </tr>
       {expanded && (
-        <tr key={`${d.domain}-detail`}>
-          <td colSpan={10} className="border-0 p-0">
-            <div className="px-4 pb-3 pt-1">
-              <div
-                className="rounded-lg p-4 text-xs"
-                style={{ background: 'var(--c-accent-soft)', border: '1px solid var(--c-border)' }}
-              >
-                <div className="mb-2 font-medium" style={{ color: 'var(--c-text-secondary)' }}>
-                  上游分析
-                </div>
-                <div className="space-y-1">
-                  <div className="flex items-center gap-4">
-                    <span style={{ color: 'var(--c-text-secondary)' }}>P95 (uncached):</span>
-                    <span style={slowStyle(d.uncached.p95)}>{fmtMs(d.uncached.p95)}</span>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <span style={{ color: 'var(--c-text-secondary)' }}>慢查询率:</span>
-                    <span>{fmtPct(d.uncached.slowRate)}</span>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <span style={{ color: 'var(--c-text-secondary)' }}>严重率:</span>
-                    <span>{fmtPct(d.uncached.severeRate)}</span>
-                  </div>
-                  <div className="mt-2 text-xs" style={{ color: 'var(--c-text-secondary)' }}>
-                    原始查询数据需要连接 AdGuardHome 后可用
-                  </div>
-                </div>
-              </div>
-            </div>
-          </td>
-        </tr>
+        <ExpandedDetail domain={d.domain} />
       )}
     </>
   )

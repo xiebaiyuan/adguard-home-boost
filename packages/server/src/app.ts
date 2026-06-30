@@ -144,6 +144,7 @@ export function buildApp(opts?: AppOptions): FastifyInstance {
         upstream: e.upstream,
         status: e.status,
         type: e.question.type,
+        answer: e.answer?.slice(0, 3) ?? [],
       })),
       upstreams,
     }

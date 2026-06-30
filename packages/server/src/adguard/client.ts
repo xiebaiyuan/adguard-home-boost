@@ -8,9 +8,10 @@ export interface AdguardConfig {
   timeRangeHours?: number // defaults to 24
 }
 
-/** Raw entry from AdGuardHome that includes the time field */
+/** Raw entry from AdGuardHome that includes the time field and answer */
 export interface RawFetchedEntry extends QueryLogEntry {
   time: string
+  answer: Array<{ type: string; value: string; ttl: number }>
 }
 
 interface AdguardApiResponse {
@@ -25,6 +26,8 @@ interface ApiLogEntry {
   cached: boolean
   upstream: string
   status: string
+  answer?: Array<{ type: string; value: string; ttl: number }>
+  answer_dnssec?: boolean
 }
 
 const PAGE_SIZE = 500
@@ -94,6 +97,7 @@ export async function fetchQueryLog(config: AdguardConfig): Promise<RawFetchedEn
         status: entry.status ?? '',
         question: { name: entry.question.name, type: entry.question.type },
         time: entry.time,
+        answer: (entry.answer ?? []).map(a => ({ type: a.type, value: a.value, ttl: a.ttl })),
       })
     }
 
