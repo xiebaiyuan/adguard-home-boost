@@ -19,25 +19,43 @@ export function Dashboard() {
 
   const allUncached = domains.map(d => d.uncached)
   const allAll = domains.map(d => d.all)
-  const overallUncached = allUncached.length > 0 ? {
-    ...allUncached[0],
-    count: allUncached.reduce((s, l) => s + l.count, 0),
-    min: Math.min(...allUncached.map(l => l.min)),
-    max: Math.max(...allUncached.map(l => l.max)),
-    avg: allUncached.reduce((s, l) => s + l.avg * l.count, 0) / allUncached.reduce((s, l) => s + l.count, 0),
-    p50: [...allUncached].sort((a, b) => a.p50 - b.p50)[Math.floor(allUncached.length / 2)]?.p50 ?? 0,
-    p95: [...allUncached].sort((a, b) => a.p95 - b.p95)[Math.floor(allUncached.length * 0.95)]?.p95 ?? 0,
-  } : null
+  const overallUncached = allUncached.length > 0 ? (() => {
+    const totalC = allUncached.reduce((s, l) => s + l.count, 0)
+    const slowC = allUncached.reduce((s, l) => s + l.slowRate * l.count, 0)
+    const severeC = allUncached.reduce((s, l) => s + l.severeRate * l.count, 0)
+    const p50s = [...allUncached].sort((a, b) => a.p50 - b.p50)
+    const p95s = [...allUncached].sort((a, b) => a.p95 - b.p95)
+    return {
+      count: totalC,
+      min: Math.min(...allUncached.map(l => l.min)),
+      max: Math.max(...allUncached.map(l => l.max)),
+      avg: allUncached.reduce((s, l) => s + l.avg * l.count, 0) / totalC,
+      p20: 0, p50: p50s[Math.floor(p50s.length / 2)]?.p50 ?? 0,
+      p80: 0, p95: p95s[Math.floor(p95s.length * 0.95)]?.p95 ?? 0,
+      p99: 0,
+      slowRate: totalC > 0 ? slowC / totalC : 0,
+      severeRate: totalC > 0 ? severeC / totalC : 0,
+    }
+  })() : null
 
-  const overallAll = allAll.length > 0 ? {
-    ...allAll[0],
-    count: allAll.reduce((s, l) => s + l.count, 0),
-    min: Math.min(...allAll.map(l => l.min)),
-    max: Math.max(...allAll.map(l => l.max)),
-    avg: allAll.reduce((s, l) => s + l.avg * l.count, 0) / allAll.reduce((s, l) => s + l.count, 0),
-    p50: [...allAll].sort((a, b) => a.p50 - b.p50)[Math.floor(allAll.length / 2)]?.p50 ?? 0,
-    p95: [...allAll].sort((a, b) => a.p95 - b.p95)[Math.floor(allAll.length * 0.95)]?.p95 ?? 0,
-  } : null
+  const overallAll = allAll.length > 0 ? (() => {
+    const totalC = allAll.reduce((s, l) => s + l.count, 0)
+    const slowC = allAll.reduce((s, l) => s + l.slowRate * l.count, 0)
+    const severeC = allAll.reduce((s, l) => s + l.severeRate * l.count, 0)
+    const p50s = [...allAll].sort((a, b) => a.p50 - b.p50)
+    const p95s = [...allAll].sort((a, b) => a.p95 - b.p95)
+    return {
+      count: totalC,
+      min: Math.min(...allAll.map(l => l.min)),
+      max: Math.max(...allAll.map(l => l.max)),
+      avg: allAll.reduce((s, l) => s + l.avg * l.count, 0) / totalC,
+      p20: 0, p50: p50s[Math.floor(p50s.length / 2)]?.p50 ?? 0,
+      p80: 0, p95: p95s[Math.floor(p95s.length * 0.95)]?.p95 ?? 0,
+      p99: 0,
+      slowRate: totalC > 0 ? slowC / totalC : 0,
+      severeRate: totalC > 0 ? severeC / totalC : 0,
+    }
+  })() : null
 
   const handleExport = () => {
     if (!domains.length) return
