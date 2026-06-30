@@ -1,4 +1,4 @@
-import { FileCsv, ArrowClockwise, Gear } from '@phosphor-icons/react'
+import { FileCsv, ArrowClockwise, Gear, ChatCircleText } from '@phosphor-icons/react'
 import { useState } from 'react'
 import { useAnalysis } from '../hooks/useAnalysis'
 import { KpiCards } from './KpiCards'
@@ -7,6 +7,7 @@ import { DomainTable } from './DomainTable'
 import { KpiSkeleton, ChartSkeleton, TableSkeleton } from './Skeleton'
 import { SettingsDialog } from './SettingsDialog'
 import { exportCsv } from '../lib/csv'
+import { buildPrompt, copyToClipboard } from '../lib/prompt'
 
 export function Dashboard() {
   const { loading, error, summary, domains, refresh, refreshing } = useAnalysis()
@@ -41,6 +42,16 @@ export function Dashboard() {
   const handleExport = () => {
     if (!domains.length) return
     exportCsv(domains)
+  }
+
+  const [copyOk, setCopyOk] = useState(false)
+  const handleCopy = async () => {
+    const text = buildPrompt(summary, domains)
+    const ok = await copyToClipboard(text)
+    if (ok) {
+      setCopyOk(true)
+      setTimeout(() => setCopyOk(false), 2000)
+    }
   }
 
   return (
@@ -90,6 +101,19 @@ export function Dashboard() {
           >
             <FileCsv size={14} />
             导出 CSV
+          </button>
+          <button
+            onClick={handleCopy}
+            disabled={!domains.length && !summary?.adguardUrl}
+            className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors"
+            style={{
+              background: copyOk ? 'var(--c-success)' : 'var(--c-accent-soft)',
+              color: copyOk ? '#fff' : 'var(--c-accent)',
+              border: 'none',
+            }}
+          >
+            <ChatCircleText size={14} />
+            {copyOk ? '已复制!' : '向 LLM 提问'}
           </button>
           <button
             onClick={refresh}
