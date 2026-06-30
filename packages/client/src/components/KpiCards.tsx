@@ -34,34 +34,36 @@ interface KpiCardsProps {
 }
 
 export function KpiCards({ totalQueries, cacheHitRate, uncached, all }: KpiCardsProps) {
+  const hasData = totalQueries > 0
   const fmt = (n: number) => n.toLocaleString()
   const fmtMs = (n: number) => `${n.toFixed(0)}ms`
   const fmtPct = (n: number) => `${(n * 100).toFixed(1)}%`
+  const dash = '--'
 
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
       <KpiCard
         label="总查询"
-        value={fmt(totalQueries)}
-        sub={all && all.slowRate > 0 ? `慢查 ${fmtPct(all.slowRate)}` : '无慢查'}
+        value={hasData ? fmt(totalQueries) : dash}
+        sub={all && all.slowRate > 0 ? `慢查 ${fmtPct(all.slowRate)}` : undefined}
         color="var(--c-accent)"
         gradient="kpi-gradient-1"
       />
       <KpiCard
         label="缓存命中率"
-        value={fmtPct(cacheHitRate)}
-        color={cacheHitRate > 0.8 ? 'var(--c-success)' : cacheHitRate > 0.5 ? 'var(--c-warning)' : 'var(--c-danger)'}
+        value={hasData ? fmtPct(cacheHitRate) : dash}
+        color={hasData ? (cacheHitRate > 0.8 ? 'var(--c-success)' : cacheHitRate > 0.5 ? 'var(--c-warning)' : 'var(--c-danger)') : undefined}
         gradient="kpi-gradient-2"
       />
       <KpiCard
         label="P50 延时"
-        value={all ? fmtMs(all.p50) : '-'}
+        value={all ? fmtMs(all.p50) : dash}
         sub={uncached ? `uncached ${fmtMs(uncached.p50)}` : undefined}
         gradient="kpi-gradient-3"
       />
       <KpiCard
         label="P95 延时"
-        value={all ? fmtMs(all.p95) : '-'}
+        value={all ? fmtMs(all.p95) : dash}
         sub={uncached ? `uncached ${fmtMs(uncached.p95)}` : undefined}
         color={all && all.p95 > 1000 ? 'var(--c-danger)' : all && all.p95 > 500 ? 'var(--c-warning)' : undefined}
         gradient="kpi-gradient-4"
