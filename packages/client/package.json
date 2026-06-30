@@ -1,7 +1,8 @@
 {
   "name": "client",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
+  "description": "AdGuardHome DNS 延时分析前端仪表盘",
   "type": "module",
   "scripts": {
     "dev": "vite",
