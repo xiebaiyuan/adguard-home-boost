@@ -205,13 +205,15 @@ export function Dashboard() {
         )}
       </div>
 
+      {/* Stats Panel (实时统计数据来自 AdGuardHome) */}
+      {!loading && (
+        <div className="mb-6">
+          <StatsPanel onRefreshNeeded={refresh} />
+        </div>
+      )}
+
       {/* Domain Table */}
       {loading ? <TableSkeleton /> : <DomainTable domains={domains} />}
-
-      {/* Stats Panel (realtime aggregate data from AdGuardHome) */}
-      <section className="mb-6">
-        {!loading && <StatsPanel onRefreshNeeded={refresh} />}
-      </section>
 
       <SettingsDialog
         open={showSettings}

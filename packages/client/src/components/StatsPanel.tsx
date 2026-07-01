@@ -121,16 +121,16 @@ export function StatsPanel({ onRefreshNeeded }: { onRefreshNeeded: () => void })
             平均处理
           </div>
           <div className="text-xl font-semibold tabular-nums gradient-text">
-            {formatMs(stats.avgProcessingTime)}
+            {formatMs(stats.avgProcessingTime * 1000)} {/* API returns seconds */}
           </div>
         </div>
         <div className="glass-card rounded-xl p-4">
           <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--c-text-secondary)' }}>
             <span className="h-2 w-2 rounded-full" style={{ background: 'var(--c-accent)' }} />
-            总查询数
+            上游服务数
           </div>
           <div className="text-xl font-semibold tabular-nums gradient-text">
-            {stats.totalQueries.toLocaleString()}
+            {stats.topUpstreams.length}
           </div>
         </div>
         <div className="glass-card rounded-xl p-4">
@@ -222,7 +222,7 @@ export function StatsPanel({ onRefreshNeeded }: { onRefreshNeeded: () => void })
               <div key={u.upstream} className="flex items-center gap-2 text-xs">
                 <span className="max-w-[120px] truncate font-mono text-[11px]">{u.upstream}</span>
                 <span className="ml-auto shrink-0 tabular-nums" style={{ color: 'var(--c-text-secondary)' }}>
-                  {u.count.toLocaleString()} 次 · {formatMs(u.avgTime)}
+                  {u.count.toLocaleString()} 次 · {formatMs(u.avgTime * 1000)}
                 </span>
               </div>
             ))}
