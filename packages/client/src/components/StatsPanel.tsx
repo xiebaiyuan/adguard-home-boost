@@ -80,6 +80,8 @@ export function StatsPanel({ onRefreshNeeded, queryTypeDistribution }: {
   const [stats, setStats] = useState<AdguardStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // 延迟渲染图表组件，避免展开时主线程阻塞卡顿
+  const [showCharts, setShowCharts] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -90,6 +92,14 @@ export function StatsPanel({ onRefreshNeeded, queryTypeDistribution }: {
       .catch(e => { if (!cancelled) { setError(String(e)); setLoading(false) } })
     return () => { cancelled = true }
   }, [onRefreshNeeded])
+
+  // 数据就绪后才启用图表渲染（延迟一帧，避免展开交互卡顿）
+  useEffect(() => {
+    if (!loading && stats) {
+      const id = requestAnimationFrame(() => setShowCharts(true))
+      return () => cancelAnimationFrame(id)
+    }
+  }, [loading, stats])
 
   if (loading) {
     return (
@@ -113,16 +123,7 @@ export function StatsPanel({ onRefreshNeeded, queryTypeDistribution }: {
 
   return (
     <div className="space-y-6">
-      {/* Section header */}
-      <div className="flex items-center gap-2">
-        <span className="text-sm font-medium" style={{ color: 'var(--c-text)' }}>实时统计</span>
-        <span className="rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider"
-          style={{ background: 'var(--c-accent-soft)', color: 'var(--c-accent)' }}>
-          {stats.timeSpan.count} {stats.timeSpan.unit === 'days' ? '天' : stats.timeSpan.unit}
-        </span>
-      </div>
-
-      {/* KPI row */}
+      {/* KPI 行 — 立即渲染（轻量） */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div className="glass-card rounded-xl p-4">
           <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--c-text-secondary)' }}>
@@ -165,25 +166,27 @@ export function StatsPanel({ onRefreshNeeded, queryTypeDistribution }: {
         </div>
       </div>
 
-      {/* Charts row */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <PieChartCard
-          title="屏蔽比例"
-          data={blockedRatio}
-        />
-        {queryTypeDistribution && queryTypeDistribution.length > 0 && (
+      {/* 图表行 — 延迟渲染（Recharts 组件较重） */}
+      {showCharts && (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           <PieChartCard
-            title="查询类型分布"
-            data={queryTypeDistribution}
+            title="屏蔽比例"
+            data={blockedRatio}
           />
-        )}
-        {stats.topClients.length > 0 && (
-          <PieChartCard
-            title="客户端排行 (Top 6)"
-            data={stats.topClients.map(c => ({ name: c.name || c.ip, value: c.count }))}
-          />
-        )}
-      </div>
+          {queryTypeDistribution && queryTypeDistribution.length > 0 && (
+            <PieChartCard
+              title="查询类型分布"
+              data={queryTypeDistribution}
+            />
+          )}
+          {stats.topClients.length > 0 && (
+            <PieChartCard
+              title="客户端排行 (Top 6)"
+              data={stats.topClients.map(c => ({ name: c.name || c.ip, value: c.count }))}
+            />
+          )}
+        </div>
+      )}
 
       {/* Tables row */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -247,7 +250,7 @@ export function StatsPanel({ onRefreshNeeded, queryTypeDistribution }: {
       </div>
 
       {/* History trend chart */}
-      {stats.history && stats.history.length > 0 && (
+      {showCharts && stats.history && stats.history.length > 0 && (
         <TrendChart history={stats.history} timeUnit={stats.timeSpan.unit} />
       )}
     </div>

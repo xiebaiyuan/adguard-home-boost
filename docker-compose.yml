@@ -5,7 +5,7 @@ services:
     restart: unless-stopped
 
     ports:
-      - "3080:3080"  # 后端 API + 前端静态页面
+      - "49241:3080"  # 后端 API + 前端静态页面
 
     environment:
       - ADGH_URL=http://192.168.8.88
