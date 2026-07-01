@@ -49,6 +49,7 @@ describe('GET /api/analysis/domains/:domain', () => {
       elapsedMs: 10, cached: false, upstream: 'https://dns.cloudflare.com',
       status: 'NOERROR', question: { name: 'example.com', type: 'A' },
       time: '2024-01-01T00:00:00Z',
+      answer: [],
     }
     const appWithData = buildApp({
       cacheSeed: new Map<string, RawFetchedEntry[]>([

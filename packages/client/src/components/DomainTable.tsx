@@ -1,13 +1,14 @@
 import { useState, useMemo, useEffect } from 'react'
-import { MagnifyingGlass, ArrowDown, ArrowUp, CaretDown, CaretUp } from '@phosphor-icons/react'
+import { MagnifyingGlass, ArrowDown, ArrowUp, CaretDown, CaretUp, Download } from '@phosphor-icons/react'
 import type { DomainStats } from '../lib/types'
+import { exportDomainCsv } from '../lib/csv'
+import { fmtMs, fmtPct, fmtCount, filterAndSortDomains } from '../lib/format'
+import type { SortKey } from '../lib/format'
 
 interface DomainTableProps {
   domains: DomainStats[]
   onExpand?: (domain: string) => void
 }
-
-type SortKey = 'domain' | 'p95' | 'p50' | 'cacheHitRate' | 'slowRate' | 'totalCount'
 
 export function DomainTable({ domains }: DomainTableProps) {
   const [search, setSearch] = useState('')
@@ -16,28 +17,9 @@ export function DomainTable({ domains }: DomainTableProps) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [typeFilter, setTypeFilter] = useState<string>('all')
 
-  const sorted = useMemo(() => {
-    let filtered = domains.filter(d => d.domain.toLowerCase().includes(search.toLowerCase()))
-    if (typeFilter !== 'all') {
-      filtered = filtered.filter(d => d.queryTypes[typeFilter] > 0)
-    }
-    return [...filtered].sort((a, b) => {
-      let va: number | string, vb: number | string
-      switch (sortKey) {
-        case 'domain': va = a.domain; vb = b.domain; break
-        case 'p95': va = a.uncached.p95; vb = b.uncached.p95; break
-        case 'p50': va = a.uncached.p50; vb = b.uncached.p50; break
-        case 'cacheHitRate': va = a.cacheHitRate; vb = b.cacheHitRate; break
-        case 'slowRate': va = a.uncached.slowRate; vb = b.uncached.slowRate; break
-        case 'totalCount': va = a.totalCount; vb = b.totalCount; break
-      }
-      if (typeof va === 'string' && typeof vb === 'string') {
-        return sortDesc ? vb.localeCompare(va) : va.localeCompare(vb)
-      }
-      const na = va as number, nb = vb as number
-      return sortDesc ? nb - na : na - nb
-    })
-  }, [domains, search, sortKey, sortDesc, typeFilter])
+  const sorted = useMemo(() =>
+    filterAndSortDomains(domains, search, typeFilter, sortKey, sortDesc),
+  [domains, search, sortKey, sortDesc, typeFilter])
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -68,10 +50,6 @@ export function DomainTable({ domains }: DomainTableProps) {
     }
     return ['all', ...Array.from(types).sort()]
   }, [domains])
-
-  const fmtMs = (n: number) => `${n.toFixed(0)}ms`
-  const fmtPct = (n: number) => `${(n * 100).toFixed(1)}%`
-  const fmtCount = (n: number) => n.toLocaleString()
 
   const cell = 'px-3 py-2.5 text-xs tabular-nums whitespace-nowrap'
   const headerCell = `${cell} cursor-pointer select-none font-medium text-xs uppercase tracking-wider transition-colors hover:opacity-80`
@@ -179,7 +157,7 @@ export function DomainTable({ domains }: DomainTableProps) {
 
 // Individual row with optional expanded detail
 function ExpandedDetail({ domain }: { domain: string }) {
-  const [data, setData] = useState<{ domain: string; entries: Array<{ time: string; type: string; answer: Array<{ type: string; value: string }>; elapsedMs: number; cached: boolean; status: string }>; upstreams: Array<{ upstream: string; count: number; avg: number }> } | null>(null)
+  const [data, setData] = useState<{ domain: string; entries: Array<{ time: string; type: string; answer: Array<{ type: string; value: string }>; elapsedMs: number; cached: boolean; upstream: string; status: string }>; upstreams: Array<{ upstream: string; count: number; avg: number }> } | null>(null)
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState(false)
 
@@ -230,6 +208,30 @@ function ExpandedDetail({ domain }: { domain: string }) {
       <td colSpan={10} className="border-0 p-0">
         <div className="px-4 pb-3 pt-1" onClick={e => e.stopPropagation()}>
           <div className="rounded-lg p-4 text-xs" style={{ background: 'var(--c-accent-soft)', border: '1px solid var(--c-border)' }}>
+            {/* Export button */}
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-xs font-medium" style={{ color: 'var(--c-text-secondary)' }}>
+                域名详情 — {data.domain}
+              </span>
+              <button
+                onClick={e => {
+                  e.stopPropagation()
+                  const csv = exportDomainCsv(data.entries)
+                  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+                  const url = URL.createObjectURL(blob)
+                  const a = document.createElement('a')
+                  a.href = url
+                  a.download = `${data.domain}-dns-log.csv`
+                  a.click()
+                  URL.revokeObjectURL(url)
+                }}
+                className="inline-flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-xs transition-colors hover:opacity-80"
+                style={{ background: 'var(--c-accent)', color: '#fff' }}
+              >
+                <Download size={12} />
+                导出日志
+              </button>
+            </div>
             {/* Resolved addresses */}
             {answers.length > 0 && (
               <>

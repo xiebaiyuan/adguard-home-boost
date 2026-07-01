@@ -12,11 +12,11 @@
   "dependencies": {
     "@fastify/cors": "^11.2.0",
     "dotenv": "^16.4.7",
-    "fastify": "^5.3.2"
+    "fastify": "^5.3.2",
+    "shared": "*"
   },
   "devDependencies": {
     "@types/node": "^22.15.3",
-    "shared": "*",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3",
     "vitest": "^3.1.2"

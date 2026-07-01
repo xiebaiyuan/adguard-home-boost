@@ -1,5 +1,5 @@
 import { FileCsv, ArrowClockwise, Gear, ChatCircleText } from '@phosphor-icons/react'
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAnalysis } from '../hooks/useAnalysis'
 import { KpiCards } from './KpiCards'
 import { LatencyChart } from './LatencyChart'
@@ -12,6 +12,30 @@ import { buildPrompt, copyToClipboard } from '../lib/prompt'
 export function Dashboard() {
   const { loading, error, summary, domains, refresh, refreshing } = useAnalysis()
   const [showSettings, setShowSettings] = useState(false)
+  const [autoRefresh, setAutoRefresh] = useState(false)
+  const autoRef = useRef(autoRefresh)
+  autoRef.current = autoRefresh
+
+  useEffect(() => {
+    if (!autoRefresh || refreshing || !summary?.ready) return
+
+    // Recursive setTimeout: schedule next cycle only after current refresh
+    const timeout = 5 * 60 * 1000 // 5 分钟
+    let timer: ReturnType<typeof setTimeout> | null = null
+
+    const scheduleNext = () => {
+      timer = setTimeout(async () => {
+        await refresh()
+        if (autoRef.current) scheduleNext()
+      }, timeout)
+    }
+
+    scheduleNext()
+
+    return () => {
+      if (timer) clearTimeout(timer)
+    }
+  }, [autoRefresh, refreshing, summary?.ready, refresh])
 
   const totalCount = domains.reduce((s, d) => s + d.totalCount, 0)
   const totalCached = domains.reduce((s, d) => s + d.cachedCount, 0)
@@ -133,6 +157,18 @@ export function Dashboard() {
             <ChatCircleText size={14} />
             {copyOk ? '已复制!' : '向 LLM 提问'}
           </button>
+          <label
+            className="inline-flex cursor-pointer items-center gap-1.5 text-xs select-none"
+            style={{ color: 'var(--c-text-secondary)' }}
+          >
+            <input
+              type="checkbox"
+              checked={autoRefresh}
+              onChange={e => setAutoRefresh(e.target.checked)}
+              className="h-3.5 w-3.5"
+            />
+            自动刷新
+          </label>
           <button
             onClick={refresh}
             disabled={refreshing}

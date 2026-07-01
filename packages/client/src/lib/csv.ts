@@ -1,5 +1,15 @@
 import type { DomainStats } from './types'
 
+export interface RawEntry {
+  time: string
+  elapsedMs: number
+  cached: boolean
+  upstream: string
+  status: string
+  type: string
+  answer: Array<{ type: string; value: string }>
+}
+
 export function exportCsv(domains: DomainStats[]) {
   const header = [
     'domain',
@@ -41,4 +51,26 @@ export function exportCsv(domains: DomainStats[]) {
   a.download = `adguard-dns-latency-${new Date().toISOString().slice(0, 10)}.csv`
   a.click()
   URL.revokeObjectURL(url)
+}
+
+export function exportDomainCsv(entries: RawEntry[]): string {
+  const header = ['time', 'elapsedMs', 'cached', 'upstream', 'status', 'type', 'answer']
+
+  const escapeCell = (v: string): string => {
+    if (/^[=+\-@]/.test(v)) v = `'${v}` // prevent CSV injection
+    if (/[,"\n]/.test(v)) v = `"${v.replace(/"/g, '""')}"`
+    return v
+  }
+
+  const rows = entries.map(e => [
+    e.time,
+    String(e.elapsedMs),
+    String(e.cached),
+    e.upstream,
+    e.status,
+    e.type,
+    e.answer.map(a => a.value).join('; '),
+  ].map(escapeCell))
+
+  return [header.join(','), ...rows.map(r => r.join(','))].join('\n')
 }
