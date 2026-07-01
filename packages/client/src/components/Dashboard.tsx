@@ -1,4 +1,4 @@
-import { FileCsv, ArrowClockwise, Gear, ChatCircleText, ShieldCheck, Prohibit, Trash } from '@phosphor-icons/react'
+import { FileCsv, ArrowClockwise, Gear, ChatCircleText, ShieldCheck, Prohibit, Trash, Sliders } from '@phosphor-icons/react'
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useAnalysis } from '../hooks/useAnalysis'
 import { useAdguard } from '../hooks/useAdguard'
@@ -6,9 +6,10 @@ import { KpiCards } from './KpiCards'
 import { LatencyChart } from './LatencyChart'
 import { DomainTable } from './DomainTable'
 import { StatsPanel } from './StatsPanel'
-import { AdguardPanel } from './AdguardPanel'
+import { CollapseSection } from './CollapseSection'
 import { KpiSkeleton, ChartSkeleton, TableSkeleton } from './Skeleton'
 import { SettingsDialog } from './SettingsDialog'
+import { ManagementDialog } from './ManagementDialog'
 import { exportCsv } from '../lib/csv'
 import { buildPrompt, copyToClipboard } from '../lib/prompt'
 import { TIME_OPTIONS } from '../lib/format'
@@ -28,6 +29,7 @@ export function Dashboard() {
 
   // Panel visibility from localStorage
   const [showStatsPanel, setShowStatsPanel] = useState(() => getPanelVisible('panel_stats', true))
+  const [showManagement, setShowManagement] = useState(false)
   const [showTimePicker, setShowTimePicker] = useState(false)
   const timePickerRef = useRef<HTMLDivElement | null>(null)
 
@@ -243,6 +245,15 @@ export function Dashboard() {
           >
             <Trash size={14} />
           </button>
+          {/* Open management */}
+          <button
+            onClick={() => setShowManagement(true)}
+            className="glass-card inline-flex cursor-pointer items-center justify-center rounded-lg p-1.5 transition-colors"
+            style={{ color: 'var(--c-text-secondary)' }}
+            title="AdGuardHome 管理（规则/安全/维护）"
+          >
+            <Sliders size={14} />
+          </button>
           <button
             onClick={() => setShowSettings(true)}
             className="glass-card inline-flex cursor-pointer items-center justify-center rounded-lg p-1.5 transition-colors"
@@ -355,27 +366,34 @@ export function Dashboard() {
 
       {/* Stats Panel (实时统计数据来自 AdGuardHome) */}
       {!loading && showStatsPanel && (
-        <div className="mb-6">
+        <CollapseSection title="实时统计" storageKey="collapse_stats" defaultOpen badge={
+          <span className="rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider"
+            style={{ background: 'var(--c-accent-soft)', color: 'var(--c-accent)' }}>
+            AdGuardHome
+          </span>
+        }>
           <StatsPanel onRefreshNeeded={refresh} queryTypeDistribution={queryTypeDistribution} />
-        </div>
+        </CollapseSection>
       )}
 
       {/* Latency Chart */}
-      <div className="mb-6">
-        {loading ? <ChartSkeleton /> : (
-          <LatencyChart domains={domains} mode="uncached" />
-        )}
-      </div>
+      <CollapseSection title="域名延时分布" storageKey="collapse_latency">
+        <div className="mb-6">
+          {loading ? <ChartSkeleton /> : (
+            <LatencyChart domains={domains} mode="uncached" />
+          )}
+        </div>
+      </CollapseSection>
 
       {/* Domain Table */}
-      {loading ? <TableSkeleton /> : <DomainTable domains={domains} />}
+      <CollapseSection title="域名延时排行" storageKey="collapse_domains">
+        {loading ? <TableSkeleton /> : <DomainTable domains={domains} />}
+      </CollapseSection>
 
-      {/* AdGuardHome Management Panel */}
-      {!loading && (
-        <div className="mb-6">
-          <AdguardPanel />
-        </div>
-      )}
+      <ManagementDialog
+        open={showManagement}
+        onClose={() => setShowManagement(false)}
+      />
 
       <SettingsDialog
         open={showSettings}
