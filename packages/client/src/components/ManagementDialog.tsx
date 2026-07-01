@@ -12,6 +12,7 @@ export function ManagementDialog({ open, onClose }: ManagementDialogProps) {
     status, loading, error, saving, rewrites,
     toggleSafebrowsing, toggleParental,
     setUserRules, addRewrite, deleteRewrite,
+    addFilterUrl,
     resetStats, clearLog,
   } = useAdguard()
 
@@ -38,6 +39,8 @@ export function ManagementDialog({ open, onClose }: ManagementDialogProps) {
 
   const [rewriteDomain, setRewriteDomain] = useState('')
   const [rewriteAnswer, setRewriteAnswer] = useState('')
+  const [filterUrl, setFilterUrl] = useState('')
+  const [filterName, setFilterName] = useState('')
 
   if (!open) return null
 
@@ -122,16 +125,54 @@ export function ManagementDialog({ open, onClose }: ManagementDialogProps) {
               </Section>
 
               {status.filters.length > 0 && (
-                <Section title="已启用过滤器">
+                <Section title="过滤器">
                   {status.filters.map(f => (
-                    <div key={f.name} className="flex items-center gap-2 text-xs">
-                      <span className="h-1.5 w-1.5 rounded-full" style={{ background: 'var(--c-success)' }} />
-                      <span>{f.name}</span>
+                    <div key={f.name} className="flex items-center gap-2 rounded-lg border px-3 py-2 text-xs" style={{ borderColor: 'var(--c-border)' }}>
+                      <span className="h-1.5 w-1.5 shrink-0 rounded-full"
+                        style={{ background: f.enabled ? 'var(--c-success)' : 'var(--c-text-secondary)' }} />
+                      <span className="flex-1 truncate">{f.name}</span>
                       {f.rulesCount != null && (
-                        <span className="text-[11px]" style={{ color: 'var(--c-text-secondary)' }}>{f.rulesCount} 条规则</span>
+                        <span className="shrink-0 text-[11px]" style={{ color: 'var(--c-text-secondary)' }}>{f.rulesCount} 条</span>
+                      )}
+                      {!f.enabled && (
+                        <span className="shrink-0 text-[11px]" style={{ color: 'var(--c-text-secondary)' }}>已禁用</span>
                       )}
                     </div>
                   ))}
+                  {/* Add filter URL subscription */}
+                  <div className="pt-2">
+                    <div className="mb-1 text-[11px]" style={{ color: 'var(--c-text-secondary)' }}>添加过滤器订阅</div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        value={filterName}
+                        onChange={e => setFilterName(e.target.value)}
+                        placeholder="名称"
+                        className="w-20 rounded-lg border px-2 py-1.5 text-xs outline-none"
+                        style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)', color: 'var(--c-text)' }}
+                      />
+                      <input
+                        value={filterUrl}
+                        onChange={e => setFilterUrl(e.target.value)}
+                        placeholder="URL"
+                        className="flex-1 rounded-lg border px-2 py-1.5 text-xs outline-none"
+                        style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)', color: 'var(--c-text)' }}
+                      />
+                      <button
+                        onClick={async () => {
+                          if (!filterName || !filterUrl) return
+                          await addFilterUrl(filterName, filterUrl)
+                          setFilterName('')
+                          setFilterUrl('')
+                        }}
+                        disabled={saving === 'filter' || !filterName || !filterUrl}
+                        className="flex shrink-0 cursor-pointer items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition-opacity disabled:opacity-40"
+                        style={{ background: 'var(--c-accent-soft)', color: 'var(--c-accent)', border: 'none' }}
+                      >
+                        <Plus size={12} />
+                        添加
+                      </button>
+                    </div>
+                  </div>
                 </Section>
               )}
             </div>

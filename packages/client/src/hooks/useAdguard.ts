@@ -1,5 +1,14 @@
 import { useState, useCallback, useEffect } from 'react'
 
+interface FilterInfo {
+  id?: number
+  name: string
+  enabled: boolean
+  rulesCount?: number
+  url?: string
+  lastUpdated?: string
+}
+
 interface AdguardStatus {
   protectionEnabled: boolean
   version: string
@@ -7,7 +16,7 @@ interface AdguardStatus {
   safebrowsingEnabled: boolean
   parentalEnabled: boolean
   safesearch: { enabled: boolean; services?: Record<string, boolean> }
-  filters: Array<{ name: string; enabled: boolean; rulesCount?: number }>
+  filters: FilterInfo[]
   rewrites: Array<{ domain: string; answer: string; enabled: boolean }>
   userRules: string
 }
@@ -55,7 +64,14 @@ export function useAdguard() {
         safebrowsingEnabled: ss?.enabled ?? false,
         parentalEnabled: ps?.enabled ?? false,
         safesearch: { enabled: sss?.enabled ?? false, services: sss },
-        filters: (fs?.filters ?? []).filter((f: any) => f.enabled),
+        filters: (fs?.filters ?? []).map((f: any) => ({
+          id: f.id,
+          name: f.name,
+          enabled: f.enabled,
+          rulesCount: f.rulesCount,
+          url: f.url,
+          lastUpdated: f.lastUpdated,
+        })),
         userRules: (fs?.user_rules ?? []).join('\n'),
         rewrites: rl ?? [],
       })
@@ -73,9 +89,9 @@ export function useAdguard() {
     setSaving('protection')
     try {
       await adguardPost('protection', { enabled, duration: 0 })
-      setStatus(s => s ? { ...s, protectionEnabled: enabled } : s)
+      await refresh()
     } finally { setSaving(null) }
-  }, [])
+  }, [refresh])
 
   const clearCache = useCallback(async () => {
     setSaving('cache')
@@ -87,22 +103,38 @@ export function useAdguard() {
     setSaving('safebrowsing')
     try {
       await adguardPost(enabled ? 'safebrowsing/enable' : 'safebrowsing/disable')
-      setStatus(s => s ? { ...s, safebrowsingEnabled: enabled } : s)
+      await refresh()
     } finally { setSaving(null) }
-  }, [])
+  }, [refresh])
 
   const toggleParental = useCallback(async (enabled: boolean) => {
     setSaving('parental')
     try {
       await adguardPost(enabled ? 'parental/enable' : 'parental/disable')
-      setStatus(s => s ? { ...s, parentalEnabled: enabled } : s)
+      await refresh()
     } finally { setSaving(null) }
-  }, [])
+  }, [refresh])
 
   const setUserRules = useCallback(async (rules: string) => {
     setSaving('rules')
     try {
       await adguardPost('filtering/set_rules', { rules })
+      await refresh()
+    } finally { setSaving(null) }
+  }, [refresh])
+
+  const addFilterUrl = useCallback(async (name: string, url: string) => {
+    setSaving('filter')
+    try {
+      await adguardPost('filtering/add_url', { name, url })
+      await refresh()
+    } finally { setSaving(null) }
+  }, [refresh])
+
+  const removeFilterUrl = useCallback(async (url: string) => {
+    setSaving('filter')
+    try {
+      await adguardPost('filtering/remove_url', { url })
       await refresh()
     } finally { setSaving(null) }
   }, [refresh])
@@ -136,6 +168,7 @@ export function useAdguard() {
     toggleProtection, clearCache,
     toggleSafebrowsing, toggleParental,
     setUserRules, addRewrite, deleteRewrite,
+    addFilterUrl, removeFilterUrl,
     resetStats, clearLog,
   }
 }
