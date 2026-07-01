@@ -185,6 +185,12 @@ export function Dashboard() {
           )}
         </div>
         <div className="flex items-center gap-2">
+          {/* Current profile indicator */}
+          {summary?.adguardUrl && (
+            <span className="hidden text-xs sm:inline" style={{ color: 'var(--c-text-secondary)' }}>
+              {localStorage.getItem('adgh_profile_name') || summary.adguardUrl.replace(/^https?:\/\//, '').split('/')[0]}
+            </span>
+          )}
           <button
             onClick={() => setShowSettings(true)}
             className="glass-card inline-flex cursor-pointer items-center justify-center rounded-lg p-1.5 transition-colors"
