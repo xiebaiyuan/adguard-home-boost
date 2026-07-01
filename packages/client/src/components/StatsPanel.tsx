@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, AreaChart, Area, XAxis, YAxis } from 'recharts'
 import { ClockCounterClockwise, Users, ShieldCheck } from '@phosphor-icons/react'
 import type { AdguardStats } from '../lib/types'
 import { fmtPreciseMs } from '../lib/format'
@@ -242,6 +242,48 @@ export function StatsPanel({ onRefreshNeeded, queryTypeDistribution }: {
           </div>
         </div>
       </div>
+
+      {/* History trend chart */}
+      {stats.history && stats.history.length > 0 && (
+        <div className="glass-card rounded-xl p-4 sm:p-6">
+          <div className="mb-3 flex items-center gap-2">
+            <div className="h-3 w-1 rounded-full" style={{ background: 'var(--c-accent)' }} />
+            <h3 className="text-sm font-medium">查询趋势</h3>
+            <span className="text-xs" style={{ color: 'var(--c-text-secondary)' }}>
+              过去 {stats.history.length} {stats.timeSpan.unit === 'days' ? '天' : stats.timeSpan.unit}
+            </span>
+          </div>
+          <div className="h-48">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={stats.history.map((h, i) => ({ ...h, index: i }))}>
+                <defs>
+                  <linearGradient id="queriesGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="var(--c-accent)" stopOpacity={0.3} />
+                    <stop offset="100%" stopColor="var(--c-accent)" stopOpacity={0.02} />
+                  </linearGradient>
+                  <linearGradient id="blockedGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="var(--c-danger)" stopOpacity={0.25} />
+                    <stop offset="100%" stopColor="var(--c-danger)" stopOpacity={0.02} />
+                  </linearGradient>
+                </defs>
+                <XAxis dataKey="index" hide />
+                <YAxis
+                  tick={{ fontSize: 11, fill: 'var(--c-text-secondary)' }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={40}
+                />
+                <Tooltip
+                  contentStyle={{ background: 'var(--c-glass)', border: '1px solid var(--c-border)', borderRadius: 8, fontSize: 12 }}
+                  labelFormatter={(i: any) => `第 ${i + 1} 天`}
+                />
+                <Area type="monotone" dataKey="queries" stroke="var(--c-accent)" strokeWidth={2} fill="url(#queriesGrad)" name="查询数" />
+                <Area type="monotone" dataKey="blocked" stroke="var(--c-danger)" strokeWidth={1.5} fill="url(#blockedGrad)" name="已屏蔽" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
