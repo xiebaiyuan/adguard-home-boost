@@ -16,6 +16,50 @@ export function Dashboard() {
   const [autoRefresh, setAutoRefresh] = useState(false)
   const autoRef = useRef(autoRefresh)
   autoRef.current = autoRefresh
+  const [showTimePicker, setShowTimePicker] = useState(false)
+  const timePickerRef = useRef<HTMLDivElement | null>(null)
+
+  const TIME_OPTIONS = [
+    { label: '最近 24h', value: 24 },
+    { label: '最近 7 天', value: 168 },
+    { label: '最近 30 天', value: 720 },
+  ]
+  const currentTimeHours = parseInt(localStorage.getItem('adgh_time_hours') ?? '24', 10)
+
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (timePickerRef.current && !timePickerRef.current.contains(e.target as Node)) {
+        setShowTimePicker(false)
+      }
+    }
+    if (showTimePicker) document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [showTimePicker])
+
+  const changeTimeRange = async (hours: number) => {
+    setShowTimePicker(false)
+    localStorage.setItem('adgh_time_hours', String(hours))
+
+    const url = localStorage.getItem('adgh_url')
+    const user = localStorage.getItem('adgh_user')
+    const pass = localStorage.getItem('adgh_pass')
+    if (!url || !user || !pass) return
+
+    await fetch('/api/config', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        adguardConfig: {
+          baseUrl: url.replace(/\/$/, ''),
+          username: user,
+          password: pass,
+          rejectUnauthorized: false,
+          timeRangeHours: hours,
+        },
+      }),
+    }).catch(() => {})
+    refresh()
+  }
 
   useEffect(() => {
     if (!autoRefresh || refreshing || !summary?.ready) return
@@ -187,15 +231,41 @@ export function Dashboard() {
         <div className="mb-3 flex items-center gap-2">
           <span className="text-sm font-medium" style={{ color: 'var(--c-text)' }}>分析概览</span>
           {summary?.timeRange?.start && (
-            <span className="rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider"
-              style={{ background: 'oklch(0.55 0.18 150 / 0.1)', color: 'var(--c-success)' }}>
-              {(() => {
-                const h = parseInt(localStorage.getItem('adgh_time_hours') ?? '24', 10)
-                if (h >= 720) return '最近 30 天'
-                if (h >= 168) return '最近 7 天'
-                return '最近 24h'
-              })()}
-            </span>
+            <div className="relative" ref={timePickerRef}>
+              <button
+                onClick={() => setShowTimePicker(!showTimePicker)}
+                className="cursor-pointer rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider transition-colors hover:opacity-80"
+                style={{ background: 'oklch(0.55 0.18 150 / 0.1)', color: 'var(--c-success)' }}
+              >
+                {(() => {
+                  if (currentTimeHours >= 720) return '最近 30 天'
+                  if (currentTimeHours >= 168) return '最近 7 天'
+                  return '最近 24h'
+                })()}
+              </button>
+              {showTimePicker && (
+                <div
+                  className="glass-card absolute left-0 top-full z-20 mt-1 min-w-[120px] overflow-hidden rounded-lg text-xs shadow-lg"
+                  style={{ border: '1px solid var(--c-border)' }}
+                >
+                  {TIME_OPTIONS.map(opt => (
+                    <button
+                      key={opt.value}
+                      onClick={() => changeTimeRange(opt.value)}
+                      className={`block w-full cursor-pointer px-3 py-2 text-left transition-colors hover:opacity-80 ${
+                        currentTimeHours === opt.value ? 'font-medium' : ''
+                      }`}
+                      style={{
+                        color: currentTimeHours === opt.value ? 'var(--c-accent)' : 'var(--c-text)',
+                        background: currentTimeHours === opt.value ? 'var(--c-accent-soft)' : 'transparent',
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
         </div>
         {loading ? (
