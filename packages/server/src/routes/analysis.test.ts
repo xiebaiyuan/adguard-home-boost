@@ -82,3 +82,12 @@ describe('POST /api/analysis/refresh', () => {
     expect(res.statusCode).toBe(400)
   })
 })
+
+describe('GET /api/analysis/stats', () => {
+  it('returns 400 when AdGuardHome not configured', async () => {
+    const res = await app.inject({ method: 'GET', url: '/api/analysis/stats' })
+    expect(res.statusCode).toBe(400)
+    const body = JSON.parse(res.body)
+    expect(body).toHaveProperty('error')
+  })
+})

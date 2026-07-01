@@ -4,6 +4,12 @@ export function fmtMs(n: number): string {
   return `${Math.round(n)}ms`
 }
 
+/** For sub-ms precision: shows µs when <1ms, otherwise 1 decimal */
+export function fmtPreciseMs(ms: number): string {
+  if (ms < 1) return `${(ms * 1000).toFixed(0)}µs`
+  return `${ms.toFixed(1)}ms`
+}
+
 export function fmtPct(n: number): string {
   return `${(n * 100).toFixed(1)}%`
 }

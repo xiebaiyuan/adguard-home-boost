@@ -198,19 +198,19 @@ export function Dashboard() {
         )}
       </div>
 
-      {/* Latency Chart */}
-      <div className="mb-6">
-        {loading ? <ChartSkeleton /> : (
-          <LatencyChart domains={domains} mode="uncached" />
-        )}
-      </div>
-
       {/* Stats Panel (实时统计数据来自 AdGuardHome) */}
       {!loading && (
         <div className="mb-6">
           <StatsPanel onRefreshNeeded={refresh} />
         </div>
       )}
+
+      {/* Latency Chart */}
+      <div className="mb-6">
+        {loading ? <ChartSkeleton /> : (
+          <LatencyChart domains={domains} mode="uncached" />
+        )}
+      </div>
 
       {/* Domain Table */}
       {loading ? <TableSkeleton /> : <DomainTable domains={domains} />}

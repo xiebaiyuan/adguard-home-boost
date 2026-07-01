@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { fmtMs, fmtPct, fmtCount, filterAndSortDomains } from './format'
+import { fmtMs, fmtPct, fmtCount, fmtPreciseMs, filterAndSortDomains } from './format'
 import type { DomainStats } from './types'
 
 describe('fmtMs', () => {
@@ -8,6 +8,21 @@ describe('fmtMs', () => {
     expect(fmtMs(0)).toBe('0ms')
     expect(fmtMs(1234)).toBe('1234ms')
     expect(fmtMs(99.7)).toBe('100ms')
+  })
+})
+
+describe('fmtPreciseMs', () => {
+  it('should format sub-ms as µs', () => {
+    expect(fmtPreciseMs(0.5)).toBe('500µs')
+    expect(fmtPreciseMs(0.0066)).toBe('7µs')
+    expect(fmtPreciseMs(0.999)).toBe('999µs')
+  })
+
+  it('should format 1ms+ with one decimal', () => {
+    expect(fmtPreciseMs(1)).toBe('1.0ms')
+    expect(fmtPreciseMs(6.598)).toBe('6.6ms')
+    expect(fmtPreciseMs(123.45)).toBe('123.5ms')
+    expect(fmtPreciseMs(0)).toBe('0µs')
   })
 })
 
