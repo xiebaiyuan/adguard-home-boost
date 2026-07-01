@@ -23,7 +23,7 @@ export interface StatsResult {
   totalQueries: number
   totalBlocked: number
   topQueriedDomains: Array<{ domain: string; count: number }>
-  topClients: Array<{ ip: string; count: number }>
+  topClients: Array<{ ip: string; count: number; name?: string }>
   topBlockedDomains: Array<{ domain: string; count: number }>
   topUpstreams: Array<{ upstream: string; count: number; avgTime: number }>
   history: Array<{ queries: number; blocked: number }>
@@ -59,6 +59,9 @@ export async function fetchStats(config: AdguardConfig): Promise<StatsResult> {
     upstreamAvgMap.set(upstream, avg)
   }
 
+  // Fetch client names from recent query log
+  const clientNameMap = await fetchClientNames(baseUrl, auth)
+
   return {
     avgProcessingTime: raw.avg_processing_time,
     totalQueries: raw.num_dns_queries,
@@ -69,7 +72,7 @@ export async function fetchStats(config: AdguardConfig): Promise<StatsResult> {
     }),
     topClients: raw.top_clients.map(c => {
       const [[ip, count]] = Object.entries(c)
-      return { ip, count }
+      return { ip, count, name: clientNameMap.get(ip) }
     }),
     topBlockedDomains: raw.top_blocked_domains.map(d => {
       const [[domain, count]] = Object.entries(d)
@@ -92,4 +95,23 @@ export async function fetchStats(config: AdguardConfig): Promise<StatsResult> {
       unit: raw.time_units || 'days',
     },
   }
+}
+
+/** Fetch a recent query log page to resolve client IP → hostname mapping */
+async function fetchClientNames(baseUrl: string, auth: string): Promise<Map<string, string>> {
+  const map = new Map<string, string>()
+  try {
+    const res = await fetch(`${baseUrl}/control/querylog?limit=100`, {
+      headers: { authorization: `Basic ${auth}`, accept: 'application/json' },
+      signal: AbortSignal.timeout(10_000),
+    })
+    if (!res.ok) return map
+    const json = await res.json() as { data: Array<{ client: string; client_info?: { name?: string } }> }
+    for (const entry of json.data ?? []) {
+      if (entry.client && entry.client_info?.name && !map.has(entry.client)) {
+        map.set(entry.client, entry.client_info.name)
+      }
+    }
+  } catch {}
+  return map
 }

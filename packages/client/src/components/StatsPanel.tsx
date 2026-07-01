@@ -179,7 +179,7 @@ export function StatsPanel({ onRefreshNeeded, queryTypeDistribution }: {
         {stats.topClients.length > 0 && (
           <PieChartCard
             title="客户端排行 (Top 6)"
-            data={stats.topClients.map(c => ({ name: c.ip, value: c.count }))}
+            data={stats.topClients.map(c => ({ name: c.name || c.ip, value: c.count }))}
           />
         )}
       </div>
@@ -196,7 +196,9 @@ export function StatsPanel({ onRefreshNeeded, queryTypeDistribution }: {
             {stats.topClients.map((c, i) => (
               <div key={c.ip} className="flex items-center gap-2 text-xs">
                 <span className="w-4 shrink-0 text-right tabular-nums" style={{ color: 'var(--c-text-secondary)' }}>{i + 1}</span>
-                <span className="font-mono">{c.ip}</span>
+                <span className="font-mono text-[11px]">
+                  {c.name ? <>{c.name}<span className="ml-1" style={{ color: 'var(--c-text-secondary)' }}>({c.ip})</span></> : c.ip}
+                </span>
                 <span className="ml-auto shrink-0 tabular-nums" style={{ color: 'var(--c-text-secondary)' }}>{c.count.toLocaleString()}</span>
               </div>
             ))}
