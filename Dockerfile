@@ -23,9 +23,6 @@ RUN npm run build -w @adgh/server
 # Build client (vite -> packages/client/dist/)
 RUN npm run build -w @adgh/dashboard
 
-# Prune devDependencies for production runner
-RUN npm prune --include-workspace-root --workspace=@adgh/server --production
-
 # ============================================
 # Production stage
 # ============================================
@@ -36,17 +33,17 @@ ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV PORT=3080
 
+# Copy hoisted node_modules from root (npm workspaces hoists everything here)
+COPY --from=builder /app/node_modules/ node_modules/
+
 # Copy built server
 COPY --from=builder /app/packages/server/dist/ packages/server/dist/
-COPY --from=builder /app/packages/server/node_modules/ packages/server/node_modules/
-COPY --from=builder /app/node_modules/ node_modules/
-COPY --from=builder /app/shared/ shared/
 
 # Copy built client (served as static files by Fastify)
 COPY --from=builder /app/packages/client/dist/ packages/client/dist/
 
 # Copy package.json for metadata
-COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/package.json ./
 
 EXPOSE 3080
 
