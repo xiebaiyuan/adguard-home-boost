@@ -1,1 +1,2 @@
 - [AdGuardHome DNS Latency Analysis](CONTEXT.md) — Domain glossary and design decisions
+- [Pre-commit Code Review Rule](memory/pre-commit-code-review.md) — 每次提交前必须执行多维度代码质量审查

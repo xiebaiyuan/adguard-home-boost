@@ -32,6 +32,31 @@ docker build -t xiebaiyuan/adguard-dns-latency:latest .
 docker compose up -d
 ```
 
+## Workflow
+
+### 每次提交前必须执行多维度代码审查
+
+在 `git commit` 之前，必须使用 `/code-review-and-quality` skill（或等效的手动审查）对本次变更进行五轴审查：
+
+| 维度 | 检查项 |
+|------|--------|
+| **Correctness** | 变更是否符合预期行为？边界/错误路径是否处理？测试是否覆盖？ |
+| **Readability** | 命名是否清晰？逻辑是否直接？有无不必要的复杂性？ |
+| **Architecture** | 是否遵循既有模式？有无不必要的耦合或重复？ |
+| **Security** | 有无注入风险？外部数据是否在边界处做校验？ |
+| **Performance** | 有无 N+1 查询？有无无界循环/数据拉取？大列表是否分页？ |
+
+**变更粒度要求：**
+- 提交尽量聚焦单一逻辑变更（一个 bugfix、一个 feature 的一部分）
+- 重构和新功能分开提交
+- 不要提交有死代码残留的变更
+
+**提交前清单：**
+- [ ] 运行 `npm test` 全部通过
+- [ ] 运行 `npm run build` 构建成功
+- [ ] 多维度代码审查已执行，Critical/Important 级别问题已修复
+- [ ] 提交信息描述变更内容与原因（而非"fix bug"等无信息描述）
+
 ## Project Architecture
 
 Monorepo with npm workspaces across three packages:
