@@ -72,7 +72,10 @@ function PieChartCard({ title, data, suffix }: {
   )
 }
 
-export function StatsPanel({ onRefreshNeeded }: { onRefreshNeeded: () => void }) {
+export function StatsPanel({ onRefreshNeeded, queryTypeDistribution }: {
+  onRefreshNeeded: () => void
+  queryTypeDistribution?: Array<{ name: string; value: number }>
+}) {
   const [stats, setStats] = useState<AdguardStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -162,12 +165,17 @@ export function StatsPanel({ onRefreshNeeded }: { onRefreshNeeded: () => void })
       </div>
 
       {/* Charts row */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <PieChartCard
           title="屏蔽比例"
           data={blockedRatio}
         />
-        {/* Fill second slot with top clients or other data */}
+        {queryTypeDistribution && queryTypeDistribution.length > 0 && (
+          <PieChartCard
+            title="查询类型分布"
+            data={queryTypeDistribution}
+          />
+        )}
         {stats.topClients.length > 0 && (
           <PieChartCard
             title="客户端排行 (Top 6)"

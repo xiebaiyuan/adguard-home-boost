@@ -1,5 +1,5 @@
 import { FileCsv, ArrowClockwise, Gear, ChatCircleText } from '@phosphor-icons/react'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useAnalysis } from '../hooks/useAnalysis'
 import { KpiCards } from './KpiCards'
 import { LatencyChart } from './LatencyChart'
@@ -125,6 +125,19 @@ export function Dashboard() {
       severeRate: totalC > 0 ? severeC / totalC : 0,
     }
   })() : null
+
+  // Aggregate query type distribution across all domains
+  const queryTypeDistribution = useMemo(() => {
+    const acc: Record<string, number> = {}
+    for (const d of domains) {
+      for (const [t, c] of Object.entries(d.queryTypes)) {
+        acc[t] = (acc[t] ?? 0) + c
+      }
+    }
+    return Object.entries(acc)
+      .sort(([, a], [, b]) => b - a)
+      .map(([name, value]) => ({ name, value }))
+  }, [domains])
 
   const handleExport = () => {
     if (!domains.length) return
@@ -285,7 +298,7 @@ export function Dashboard() {
       {/* Stats Panel (实时统计数据来自 AdGuardHome) */}
       {!loading && (
         <div className="mb-6">
-          <StatsPanel onRefreshNeeded={refresh} />
+          <StatsPanel onRefreshNeeded={refresh} queryTypeDistribution={queryTypeDistribution} />
         </div>
       )}
 
