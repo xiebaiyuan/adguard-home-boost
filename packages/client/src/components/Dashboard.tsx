@@ -184,6 +184,20 @@ export function Dashboard() {
 
       {/* KPI Cards */}
       <div className="mb-6">
+        <div className="mb-3 flex items-center gap-2">
+          <span className="text-sm font-medium" style={{ color: 'var(--c-text)' }}>分析概览</span>
+          {summary?.timeRange?.start && (
+            <span className="rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider"
+              style={{ background: 'oklch(0.55 0.18 150 / 0.1)', color: 'var(--c-success)' }}>
+              {(() => {
+                const h = parseInt(localStorage.getItem('adgh_time_hours') ?? '24', 10)
+                if (h >= 720) return '最近 30 天'
+                if (h >= 168) return '最近 7 天'
+                return '最近 24h'
+              })()}
+            </span>
+          )}
+        </div>
         {loading ? (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <KpiSkeleton /><KpiSkeleton /><KpiSkeleton /><KpiSkeleton />

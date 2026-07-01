@@ -109,6 +109,15 @@ export function StatsPanel({ onRefreshNeeded }: { onRefreshNeeded: () => void })
 
   return (
     <div className="space-y-6">
+      {/* Section header */}
+      <div className="flex items-center gap-2">
+        <span className="text-sm font-medium" style={{ color: 'var(--c-text)' }}>实时统计</span>
+        <span className="rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider"
+          style={{ background: 'var(--c-accent-soft)', color: 'var(--c-accent)' }}>
+          AdGuardHome 累计
+        </span>
+      </div>
+
       {/* KPI row */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div className="glass-card rounded-xl p-4">
