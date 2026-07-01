@@ -101,18 +101,7 @@ export function StatsPanel({ onRefreshNeeded, queryTypeDistribution }: {
     }
   }, [loading, stats])
 
-  if (loading) {
-    return (
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {[1,2,3,4].map(i => (
-          <div key={i} className="glass-card animate-pulse rounded-xl p-4">
-            <div className="mb-2 h-3 w-20 rounded" style={{ background: 'var(--c-border)' }} />
-            <div className="h-6 w-16 rounded" style={{ background: 'var(--c-border)' }} />
-          </div>
-        ))}
-      </div>
-    )
-  }
+  if (loading) return null
 
   if (error || !stats) return null
 

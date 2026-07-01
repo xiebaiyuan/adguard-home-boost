@@ -7,7 +7,6 @@ import { LatencyChart } from './LatencyChart'
 import { DomainTable } from './DomainTable'
 import { StatsPanel } from './StatsPanel'
 import { CollapseSection } from './CollapseSection'
-import { KpiSkeleton, ChartSkeleton, TableSkeleton } from './Skeleton'
 import { SettingsDialog } from './SettingsDialog'
 import { ManagementDialog } from './ManagementDialog'
 import { exportCsv } from '../lib/csv'
@@ -344,18 +343,14 @@ export function Dashboard() {
             </div>
           )}
         </div>
-        {loading ? (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <KpiSkeleton /><KpiSkeleton /><KpiSkeleton /><KpiSkeleton />
-          </div>
-        ) : (
+        <div className="fade-in-content">
           <KpiCards
-            totalQueries={aggregateStats.totalCount}
-            cacheHitRate={aggregateStats.overallCacheRate}
-            uncached={aggregateStats.overallUncached}
-            all={aggregateStats.overallAll}
+            totalQueries={loading ? 0 : aggregateStats.totalCount}
+            cacheHitRate={loading ? 0 : aggregateStats.overallCacheRate}
+            uncached={loading ? null : aggregateStats.overallUncached}
+            all={loading ? null : aggregateStats.overallAll}
           />
-        )}
+        </div>
       </div>
 
       {/* Stats Panel (实时统计数据来自 AdGuardHome) */}
@@ -372,16 +367,16 @@ export function Dashboard() {
 
       {/* Latency Chart */}
       <CollapseSection title="域名延时分布" storageKey="collapse_latency">
-        <div className="mb-6">
-          {loading ? <ChartSkeleton /> : (
-            <LatencyChart domains={domains} mode="uncached" />
-          )}
+        <div className="mb-6 fade-in-content">
+          <LatencyChart domains={domains} mode="uncached" />
         </div>
       </CollapseSection>
 
       {/* Domain Table */}
       <CollapseSection title="域名延时排行" storageKey="collapse_domains">
-        {loading ? <TableSkeleton /> : <DomainTable domains={domains} />}
+        <div className="fade-in-content">
+          <DomainTable domains={domains} />
+        </div>
       </CollapseSection>
 
       <ManagementDialog

@@ -112,6 +112,15 @@ body {
   animation: fadeSlideUp 0.3s ease-out;
 }
 
+/* 内容淡入 — 无骨架屏，首次渲染时平滑出现 */
+@keyframes fadeInContent {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+.fade-in-content {
+  animation: fadeInContent 350ms ease-out;
+}
+
 /* Scrollbar subtle */
 ::-webkit-scrollbar {
   width: 6px;
