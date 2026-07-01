@@ -5,6 +5,7 @@ import type { AnalysisResult } from 'shared'
 import type { AdguardConfig, RawFetchedEntry } from './adguard/client'
 import { refreshFromAdguard } from './adguard/fetcher'
 import { fetchStats } from './adguard/stats'
+import { proxyAdguard } from './adguard/proxy'
 
 interface CacheState {
   ready: boolean
@@ -250,6 +251,33 @@ export function buildApp(opts?: AppOptions): FastifyInstance {
 
     reply.status(202)
     return { message: 'refresh started' }
+  })
+
+  // Generic AdGuardHome management API proxy
+  const adguardGuard = (reply: any) => {
+    if (!adguardConfig) {
+      reply.status(400)
+      return { error: 'AdGuardHome not configured' }
+    }
+    return null
+  }
+
+  app.get('/api/adguard/*', async (request, reply) => {
+    const blocked = adguardGuard(reply)
+    if (blocked) return blocked
+    const targetPath = '/' + (request.params as any)['*']
+    const result = await proxyAdguard(adguardConfig!, 'GET', targetPath)
+    reply.status(result.status)
+    return result.data
+  })
+
+  app.post('/api/adguard/*', async (request, reply) => {
+    const blocked = adguardGuard(reply)
+    if (blocked) return blocked
+    const targetPath = '/' + (request.params as any)['*']
+    const result = await proxyAdguard(adguardConfig!, 'POST', targetPath, request.body)
+    reply.status(result.status)
+    return result.data
   })
 
   return app

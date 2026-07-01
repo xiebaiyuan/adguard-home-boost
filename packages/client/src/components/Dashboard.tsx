@@ -1,10 +1,12 @@
-import { FileCsv, ArrowClockwise, Gear, ChatCircleText } from '@phosphor-icons/react'
+import { FileCsv, ArrowClockwise, Gear, ChatCircleText, ShieldCheck, Prohibit, Trash } from '@phosphor-icons/react'
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useAnalysis } from '../hooks/useAnalysis'
+import { useAdguard } from '../hooks/useAdguard'
 import { KpiCards } from './KpiCards'
 import { LatencyChart } from './LatencyChart'
 import { DomainTable } from './DomainTable'
 import { StatsPanel } from './StatsPanel'
+import { AdguardPanel } from './AdguardPanel'
 import { KpiSkeleton, ChartSkeleton, TableSkeleton } from './Skeleton'
 import { SettingsDialog } from './SettingsDialog'
 import { exportCsv } from '../lib/csv'
@@ -18,6 +20,7 @@ function getPanelVisible(key: string, def: boolean): boolean {
 
 export function Dashboard() {
   const { loading, error, summary, domains, refresh, refreshing } = useAnalysis()
+  const adguard = useAdguard()
   const [showSettings, setShowSettings] = useState(false)
   const [autoRefresh, setAutoRefresh] = useState(false)
   const autoRef = useRef(autoRefresh)
@@ -211,6 +214,35 @@ export function Dashboard() {
             />
             统计
           </label>
+          {/* Protection toggle */}
+          {adguard.status && (() => {
+            const prot = adguard.status.protectionEnabled
+            return (
+              <button
+                onClick={() => adguard.toggleProtection(!prot)}
+                disabled={adguard.saving === 'protection'}
+                className="inline-flex cursor-pointer items-center gap-1 rounded-lg px-2 py-1.5 text-[10px] font-medium uppercase tracking-wider transition-colors disabled:opacity-60"
+                style={{
+                  background: prot ? 'oklch(0.55 0.18 150 / 0.1)' : 'oklch(0.58 0.22 27 / 0.1)',
+                  color: prot ? 'var(--c-success)' : 'var(--c-danger)',
+                  border: 'none',
+                }}
+              >
+                {prot ? <ShieldCheck size={12} /> : <Prohibit size={12} />}
+                {prot ? '保护中' : '已暂停'}
+              </button>
+            )
+          })()}
+          {/* Clear cache */}
+          <button
+            onClick={() => adguard.clearCache()}
+            disabled={adguard.saving === 'cache'}
+            className="glass-card inline-flex cursor-pointer items-center justify-center rounded-lg p-1.5 transition-colors disabled:opacity-40"
+            style={{ color: 'var(--c-text-secondary)' }}
+            title="清除 DNS 缓存"
+          >
+            <Trash size={14} />
+          </button>
           <button
             onClick={() => setShowSettings(true)}
             className="glass-card inline-flex cursor-pointer items-center justify-center rounded-lg p-1.5 transition-colors"
@@ -337,6 +369,13 @@ export function Dashboard() {
 
       {/* Domain Table */}
       {loading ? <TableSkeleton /> : <DomainTable domains={domains} />}
+
+      {/* AdGuardHome Management Panel */}
+      {!loading && (
+        <div className="mb-6">
+          <AdguardPanel />
+        </div>
+      )}
 
       <SettingsDialog
         open={showSettings}
