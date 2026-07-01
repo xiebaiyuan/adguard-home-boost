@@ -142,7 +142,11 @@ export function useAdguard() {
   const setFilterEnabled = useCallback(async (url: string, name: string, enabled: boolean) => {
     setSaving('filter')
     try {
-      await adguardPost('filtering/set_url', { name, url, enabled, whitelist: false })
+      await adguardPost('filtering/set_url', {
+        data: { name, url, enabled },
+        url,
+        whitelist: false,
+      })
       await refresh()
     } finally { setSaving(null) }
   }, [refresh])
@@ -150,7 +154,11 @@ export function useAdguard() {
   const updateFilterUrl = useCallback(async (oldUrl: string, newUrl: string, name: string) => {
     setSaving('filter')
     try {
-      await adguardPost('filtering/set_url', { url: oldUrl, name, new_url: newUrl, whitelist: false })
+      await adguardPost('filtering/set_url', {
+        data: { name, url: newUrl, enabled: true },
+        url: oldUrl,
+        whitelist: false,
+      })
       await refresh()
     } finally { setSaving(null) }
   }, [refresh])
