@@ -1,4 +1,4 @@
-import type { AdguardConfig } from './client'
+import type { AdguardConfig } from './client.js'
 
 interface ProxyResult {
   status: number

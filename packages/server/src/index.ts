@@ -4,8 +4,8 @@ import { fileURLToPath } from 'url'
 const __dirname = dirname(fileURLToPath(import.meta.url))
 config({ path: resolve(__dirname, '../../../.env') })
 
-import { buildApp } from './app'
-import type { AdguardConfig } from './adguard/client'
+import { buildApp } from './app.js'
+import type { AdguardConfig } from './adguard/client.js'
 
 const PORT = parseInt(process.env.PORT ?? '3080', 10)
 const HOST = process.env.HOST ?? '0.0.0.0'

@@ -4,10 +4,10 @@ import fastifyStatic from '@fastify/static'
 import { resolve } from 'path'
 import type { FastifyInstance } from 'fastify'
 import type { AnalysisResult } from 'shared'
-import type { AdguardConfig, RawFetchedEntry } from './adguard/client'
-import { refreshFromAdguard } from './adguard/fetcher'
-import { fetchStats } from './adguard/stats'
-import { proxyAdguard } from './adguard/proxy'
+import type { AdguardConfig, RawFetchedEntry } from './adguard/client.js'
+import { refreshFromAdguard } from './adguard/fetcher.js'
+import { fetchStats } from './adguard/stats.js'
+import { proxyAdguard } from './adguard/proxy.js'
 
 interface CacheState {
   ready: boolean

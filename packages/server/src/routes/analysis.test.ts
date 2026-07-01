@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { buildApp } from '../app'
+import { buildApp } from '../app.js'
 import type { FastifyInstance } from 'fastify'
-import type { RawFetchedEntry } from '../adguard/client'
+import type { RawFetchedEntry } from '../adguard/client.js'
 
 let app: FastifyInstance
 

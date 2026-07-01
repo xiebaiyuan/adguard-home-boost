@@ -1,4 +1,4 @@
-import type { AdguardConfig } from './client'
+import type { AdguardConfig } from './client.js'
 
 /** Raw response from AdGuardHome /control/stats */
 export interface RawStats {

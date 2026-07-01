@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { analyze } from './analyze'
+import { analyze } from './analyze.js'
 import type { QueryLogEntry } from 'shared'
 
 function q(name: string, elapsedMs: number, cached = false, type = 'A'): QueryLogEntry {

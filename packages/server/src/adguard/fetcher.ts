@@ -1,7 +1,7 @@
 import type { AnalysisResult, QueryLogEntry } from 'shared'
-import type { AdguardConfig, RawFetchedEntry } from './client'
-import { fetchQueryLog } from './client'
-import { analyze } from '../analyze'
+import type { AdguardConfig, RawFetchedEntry } from './client.js'
+import { fetchQueryLog } from './client.js'
+import { analyze } from '../analyze.js'
 
 export interface RefreshResult {
   domainStats: AnalysisResult

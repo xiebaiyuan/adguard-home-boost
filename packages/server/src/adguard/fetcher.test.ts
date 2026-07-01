@@ -1,7 +1,7 @@
 import { createServer } from 'http'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { refreshFromAdguard } from './fetcher'
-import { analyze } from '../analyze'
+import { refreshFromAdguard } from './fetcher.js'
+import { analyze } from '../analyze.js'
 import type { Server } from 'http'
 
 let server: Server

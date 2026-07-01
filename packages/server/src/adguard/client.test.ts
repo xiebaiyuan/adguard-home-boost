@@ -1,6 +1,6 @@
 import { createServer } from 'http'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { fetchQueryLog } from './client'
+import { fetchQueryLog } from './client.js'
 import type { Server } from 'http'
 
 let server: Server
