@@ -16,6 +16,13 @@ export function Dashboard() {
   const [autoRefresh, setAutoRefresh] = useState(false)
   const autoRef = useRef(autoRefresh)
   autoRef.current = autoRefresh
+
+  // Panel visibility from localStorage
+  const getPanelVisible = (key: string, def: boolean): boolean => {
+    const stored = localStorage.getItem(key)
+    return stored !== null ? stored === 'true' : def
+  }
+  const [showStatsPanel, setShowStatsPanel] = useState(() => getPanelVisible('panel_stats', true))
   const [showTimePicker, setShowTimePicker] = useState(false)
   const timePickerRef = useRef<HTMLDivElement | null>(null)
 
@@ -191,6 +198,22 @@ export function Dashboard() {
               {localStorage.getItem('adgh_profile_name') || summary.adguardUrl.replace(/^https?:\/\//, '').split('/')[0]}
             </span>
           )}
+          {/* Panel visibility toggles */}
+          <label
+            className="hidden cursor-pointer items-center gap-1 rounded-lg px-2 py-1.5 text-[10px] font-medium uppercase tracking-wider sm:inline-flex select-none transition-colors"
+            style={{
+              color: showStatsPanel ? 'var(--c-accent)' : 'var(--c-text-secondary)',
+              background: showStatsPanel ? 'var(--c-accent-soft)' : 'transparent',
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={showStatsPanel}
+              onChange={e => { setShowStatsPanel(e.target.checked); localStorage.setItem('panel_stats', String(e.target.checked)) }}
+              className="hidden"
+            />
+            统计
+          </label>
           <button
             onClick={() => setShowSettings(true)}
             className="glass-card inline-flex cursor-pointer items-center justify-center rounded-lg p-1.5 transition-colors"
@@ -302,7 +325,7 @@ export function Dashboard() {
       </div>
 
       {/* Stats Panel (实时统计数据来自 AdGuardHome) */}
-      {!loading && (
+      {!loading && showStatsPanel && (
         <div className="mb-6">
           <StatsPanel onRefreshNeeded={refresh} queryTypeDistribution={queryTypeDistribution} />
         </div>
