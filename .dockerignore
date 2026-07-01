@@ -2,5 +2,3 @@ node_modules
 .git
 *.md
 .env
-dist
-packages/client
