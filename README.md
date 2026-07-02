@@ -4,16 +4,23 @@
 [![Node](https://img.shields.io/badge/node-%3E%3D18-brightgreen)](package.json)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)](package.json)
 
-分析和诊断 [AdGuardHome](https://github.com/AdguardTeam/AdGuardHome) DNS 查询延时的工具。按域名聚合统计 P20~P99 延时分布，找出长尾慢查询进行进一步诊断。
+AdGuardHome 突然变慢了？上游服务器被打满，域名一直在超时，但你不知道是谁在拖后腿。
 
-## 预览
+这个工具从 AdGuardHome 查询日志中**按域名聚合延时分布**，让你一眼看到：
+- 哪个域名最慢——P50 / P95 / P99 延时排行榜，排序即见
+- 是缓存没命中还是上游真的慢——uncached 和 all 分开统计
+- 哪个上游在拖后腿——行内展开直接看每个域名的上游服务器延时明细
+- 超时的到底是谁——>500ms 慢查询、>1s 严重、>3s 超时，按域名分级展示
 
-| 功能 | 截图 |
+无需改配置，浏览器里填 AdGuardHome 地址就行。开源，MIT。
+
+## 截图预览
+
+| 视图 | 预览 |
 |------|------|
-| 📊 **仪表盘** | 总览 KPI、慢查询比例、缓存命中率，一目了然 |
-| 📋 **域名表格** | 排序、搜索、行内展开上游明细，交互流畅 |
-| 📈 **延迟分布** | P20 / P50 / P80 / P95 / P99 百分位延时分布图 |
-| ⚙️ **配置面板** | 浏览器内填写 AdGuardHome 连接信息，无需编辑文件 |
+| 📊 **仪表盘总览** | ![仪表盘](docs/screenshots/dashboard-overview.png) |
+| 📋 **域名延时排行**（含上游下钻） | ![域名表格](docs/screenshots/domain-table.png) |
+| 📈 **实时统计面板**（图表、屏蔽比例、客户端排行） | ![统计面板](docs/screenshots/stats-panel.png) |
 
 ---
 
