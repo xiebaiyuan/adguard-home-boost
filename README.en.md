@@ -1,23 +1,65 @@
 # AdGuardHome DNS Latency Analyzer
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Node](https://img.shields.io/badge/node-%3E%3D18-brightgreen)](package.json)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)](package.json)
+<p align="center">
+  <img src="docs/screenshots/dashboard-overview.png" alt="Dashboard Preview" width="720">
+</p>
 
-Analyze and diagnose DNS query latency for [AdGuardHome](https://github.com/AdguardTeam/AdGuardHome). Aggregates latency percentiles (P20~P99) per domain to identify long-tail slow queries for further diagnosis.
+<p align="center">
+  <a href="README.md"><strong>🇨🇳 中文版</strong></a> ·
+  <a href="https://github.com/xiebaiyuan/adguard-dns-latency/releases"><img src="https://img.shields.io/github/v/release/xiebaiyuan/adguard-dns-latency" alt="Release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License"></a>
+  <a href="package.json"><img src="https://img.shields.io/badge/node-%3E%3D18-brightgreen" alt="Node"></a>
+</p>
 
-> **🇨🇳 中文版**: 详见 [README.md](README.md)
+---
+
+AdGuardHome getting slow? Upstream servers saturated, domains timing out, and you have no idea who's to blame?
+
+This tool taps into [AdGuardHome](https://github.com/AdguardTeam/AdGuardHome)'s query log API, aggregates latency by domain, and **pinpoints the problem at a glance**:
+
+| Situation | Solution |
+|-----------|----------|
+| 😰 Overall slowness, don't know which domains are affected | **P50 / P95 / P99 leaderboard** — sort by any percentile |
+| 🔍 Cache miss, or slow upstream? | **cached vs uncached columns** — see real upstream performance |
+| 📡 Upstream saturated, which one is dragging you down? | **Inline drill-down** — per-domain upstream latency breakdown |
+| ⏱ Who keeps timing out? | **Three-tier grading**: >500ms slow, >1s severe, >3s timeout |
+| 📊 Want an overall health check? | **Live stats panel**: block ratio / query types / top clients / trend chart |
+
+**No config file editing needed** — enter your AdGuardHome URL in the browser. Open source under MIT.
+
+---
+
+## Screenshots
+
+<p align="center">
+  <img src="docs/screenshots/dashboard-overview.png" alt="Dashboard" width="720">
+  <br><em>Dashboard — KPI cards + latency distribution + domain rankings</em>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/domain-table.png" alt="Domain Table" width="720">
+  <br><em>Domain table — search, sort, inline upstream drill-down, resolved addresses with TTL</em>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/stats-panel.png" alt="Stats Panel" width="720">
+  <br><em>Live stats — block ratio pie chart, query type distribution, top clients, upstream response times</em>
+</p>
+
+---
 
 ## Features
 
-- **Latency Distribution** — Per-domain P20 / P50 / P80 / P95 / P99 / Max / Avg / Min, sortable and filterable
-- **Cache-Aware** — Cached and uncached queries are reported separately, distinguishing "real upstream performance" from "user experience"
-- **Slow Query Grading** — >500ms (slow), >1s (severe), >3s (timeout), with per-domain slow rate and severe rate
-- **Query Type Analysis** — Breakdown by A / AAAA / PTR / MX record types, with type filtering support
-- **Upstream Drill-Down** — Inline expand on any domain to view per-upstream latency details
+- **Latency Distribution** — Per-domain P20 / P50 / P60 / P70 / P80 / P95 / P99 / Max / Avg / Min, sortable and filterable
+- **Cache-Aware** — Cached and uncached queries are reported separately, distinguishing real upstream performance from user experience
+- **Slow Query Grading** — >500ms (slow), >1s (severe), >3s (timeout), per-domain slow rate and severe rate
+- **Query Type Analysis** — Breakdown by A / AAAA / PTR / MX record types, with type filtering
+- **Upstream Drill-Down** — Inline expand on any domain to view per-upstream latency breakdown
+- **Resolved Addresses + TTL** — See resolved IPs with TTL ranges and recent query records
 - **Dark/Light Mode** — Follows system preference + manual toggle
-- **CSV Export** — Export summary statistics or raw query logs for offline analysis
+- **CSV Export** — Export summary or raw query logs for offline analysis
 - **Browser Configuration** — Configure AdGuardHome connection from the UI — no file editing required
+- **LLM-Ready Report** — One-click copy latency report to paste into ChatGPT / Claude for deeper analysis
 
 ## Architecture
 
@@ -38,7 +80,7 @@ Analyze and diagnose DNS query latency for [AdGuardHome](https://github.com/Adgu
 |-------|------|
 | **Frontend** | Vite + React + shadcn/ui + Recharts (Tailwind v4, responsive, mobile-friendly) |
 | **Backend** | Fastify + TypeScript (8 API endpoints, async refresh, in-memory cache) |
-| **Analysis Engine** | Pure functions, fully unit-tested, handles empty/single/batch input |
+| **Analysis Engine** | Pure functions, single-pass O(n), fully unit-tested |
 | **Build** | npm workspaces monorepo, multi-stage Docker build |
 
 ### API Endpoints
@@ -48,7 +90,7 @@ Analyze and diagnose DNS query latency for [AdGuardHome](https://github.com/Adgu
 | `/api/analysis/summary` | GET | Cache status + summary KPI |
 | `/api/analysis/domains` | GET | Per-domain aggregated stats (supports `type` / `search` / `sort` / `order` / `limit`) |
 | `/api/analysis/domains/:domain` | GET | Upstream breakdown + raw query log for a specific domain (paginated) |
-| `/api/analysis/stats` | GET | Raw stats overview from AdGuardHome |
+| `/api/analysis/stats` | GET | Raw stats overview from AdGuardHome (30s cached) |
 | `/api/analysis/refresh` | POST | Trigger re-fetch from AdGuardHome (async) |
 | `/api/config` | POST | Configure AdGuardHome connection (URL / username / password) |
 | `/api/adguard/*` | GET/POST | Generic AdGuardHome management API proxy |
@@ -108,9 +150,7 @@ Open `http://localhost:5173/` in your browser, click the ⚙️ gear icon in the
 | Username | AdGuardHome admin username |
 | Password | AdGuardHome admin password |
 
-Click "Refresh" to fetch data.
-
-You can also preset defaults via `.env` file (see [.env.example](.env.example)).
+Click "Refresh" to fetch data. You can also preset defaults via `.env` file.
 
 ### SSL / Self-Signed Certificates
 
@@ -133,17 +173,18 @@ adguard-dns-latency/
 │   │           └── fetcher.ts     # Data fetching orchestrator
 │   └── client/                    # React frontend SPA
 │       └── src/
-│           ├── components/        # UI components (dashboard / table / charts / config panel)
+│           ├── components/        # UI components
 │           ├── hooks/             # Theme + data fetching hooks
 │           └── lib/               # Type definitions + CSV export
 ├── shared/
-│   └── types.ts                   # Shared types between frontend and backend
+│   └── types.ts                   # Shared types
 ├── docs/
-│   └── SSL.md                     # SSL certificate handling guide
-├── .env.example                   # Environment variable template
-├── Dockerfile                     # Multi-stage Docker build
-├── docker-compose.yml             # Docker Compose configuration
-└── package.json                   # npm workspaces monorepo config
+│   ├── SSL.md                     # SSL certificate guide
+│   └── screenshots/               # Screenshots
+├── .env.example
+├── Dockerfile
+├── docker-compose.yml
+└── package.json
 ```
 
 ## Development
@@ -192,6 +233,10 @@ cd packages/server && npx vitest run --coverage
 | `HOST` | Server listen address | `0.0.0.0` |
 
 ---
+
+## Credits
+
+- [AdGuardHome](https://github.com/AdguardTeam/AdGuardHome) — The excellent network-wide ad blocking and DNS server that powers all the data behind this tool
 
 ## License
 
