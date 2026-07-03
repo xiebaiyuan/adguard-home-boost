@@ -28,8 +28,10 @@ function computeDomainStats(domain: string, entries: QueryLogEntry[]): DomainSta
   const queryTypes: Record<string, number> = {}
   let cachedCount = 0
   const clientCounts = new Map<string, { ip: string; name?: string; count: number }>()
+  let blockedCount = 0
+  const blockRuleCounts = new Map<string, number>()
 
-  // 单次遍历：同时收集缓存统计、延时列表、查询类型分布、客户端排行
+  // 单次遍历：同时收集缓存统计、延时列表、查询类型分布、客户端排行、拦截统计
   for (const e of entries) {
     allLatencies.push(e.elapsedMs)
     if (e.cached) {
@@ -53,12 +55,25 @@ function computeDomainStats(domain: string, entries: QueryLogEntry[]): DomainSta
         })
       }
     }
+
+    // 拦截统计：reason 以 NotFiltered 开头视为放行，其他（Filtered*、BlockedByRule 等）视为拦截
+    if (e.blockReason && !e.blockReason.startsWith('NotFiltered')) {
+      blockedCount++
+      if (e.blockRule) {
+        blockRuleCounts.set(e.blockRule, (blockRuleCounts.get(e.blockRule) ?? 0) + 1)
+      }
+    }
   }
 
   // 按次数降序取前 10
   const topClients = Array.from(clientCounts.values())
     .sort((a, b) => b.count - a.count)
     .slice(0, 10)
+
+  const topBlockRules = Array.from(blockRuleCounts.entries())
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 10)
+    .map(([rule, count]) => ({ rule, count }))
 
   return {
     domain,
@@ -69,6 +84,9 @@ function computeDomainStats(domain: string, entries: QueryLogEntry[]): DomainSta
     uncached: computeLatencyStats(uncachedLatencies),
     all: computeLatencyStats(allLatencies),
     topClients,
+    blockedCount,
+    blockedRate: totalCount > 0 ? blockedCount / totalCount : 0,
+    topBlockRules,
   }
 }
 

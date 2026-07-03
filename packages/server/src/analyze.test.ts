@@ -11,6 +11,8 @@ function q(name: string, elapsedMs: number, cached = false, type = 'A'): QueryLo
     question: { name, type },
     client: '192.168.1.100',
     clientName: 'test-device',
+    blockReason: '',
+    blockRule: '',
   }
 }
 

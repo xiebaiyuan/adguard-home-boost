@@ -29,6 +29,8 @@ export async function refreshFromAdguard(config: AdguardConfig): Promise<Refresh
     question: { name: e.question.name, type: e.question.type },
     client: e.client,
     clientName: e.clientName,
+    blockReason: e.blockReason,
+    blockRule: e.blockRule,
   }))
 
   const domainStats = analyze(analyzeEntries)

@@ -30,6 +30,10 @@ interface ApiLogEntry {
   client: string
   /** 客户端信息（名称等） */
   client_info?: { name?: string }
+  /** AdGuardHome 处理原因：NotFiltered=放行, Filtered/SafeBrowsing/Parental/BlockedByRule=拦截 */
+  reason?: string
+  /** 命中拦截规则的文本 */
+  rule?: string
   answer?: Array<{ type: string; value: string; ttl: number }>
   answer_dnssec?: boolean
 }
@@ -110,6 +114,8 @@ export async function fetchQueryLog(config: AdguardConfig): Promise<RawFetchedEn
         question: { name: entry.question.name, type: entry.question.type },
         client,
         clientName: clientNameMap.get(client),
+        blockReason: entry.reason ?? '',
+        blockRule: entry.rule ?? '',
         time: entry.time,
         answer: (entry.answer ?? []).map(a => ({ type: a.type, value: a.value, ttl: a.ttl })),
       })

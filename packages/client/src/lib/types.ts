@@ -29,6 +29,12 @@ export interface DomainStats {
     name?: string
     count: number
   }>
+  blockedCount: number
+  blockedRate: number
+  topBlockRules: Array<{
+    rule: string
+    count: number
+  }>
 }
 
 export interface AnalysisSummary {

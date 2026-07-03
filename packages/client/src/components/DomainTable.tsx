@@ -36,7 +36,7 @@ export function DomainTable({ domains }: DomainTableProps) {
       setSortDesc(!sortDesc)
     } else {
       setSortKey(key)
-      setSortDesc(key === 'p95' || key === 'p60' || key === 'p70' || key === 'slowRate' || key === 'totalCount')
+      setSortDesc(key === 'p95' || key === 'p60' || key === 'p70' || key === 'slowRate' || key === 'totalCount' || key === 'blockedCount')
     }
   }
 
@@ -119,6 +119,9 @@ export function DomainTable({ domains }: DomainTableProps) {
                 <span className="inline-flex items-center gap-1">次数 {sortArrow('totalCount')}</span>
               </th>
               <th className={cell}>缓存率</th>
+              <th className={headerCell} onClick={() => toggleSort('blockedCount')}>
+                <span className="inline-flex items-center gap-1">拦截 {sortArrow('blockedCount')}</span>
+              </th>
               <th className={headerCell} onClick={() => toggleSort('p50')}>
                 <span className="inline-flex items-center gap-1">P50 {sortArrow('p50')}</span>
               </th>
@@ -149,7 +152,7 @@ export function DomainTable({ domains }: DomainTableProps) {
             ))}
             {sorted.length === 0 && (
               <tr>
-                <td colSpan={12} className="py-12 text-center text-xs" style={{ color: 'var(--c-text-secondary)' }}>
+                <td colSpan={13} className="py-12 text-center text-xs" style={{ color: 'var(--c-text-secondary)' }}>
                   {search ? `没有域名匹配 "${search}"` : '暂无数据，请先刷新'}
                 </td>
               </tr>
@@ -162,7 +165,7 @@ export function DomainTable({ domains }: DomainTableProps) {
 }
 
 // Individual row with optional expanded detail
-function ExpandedDetail({ domain, topClients }: { domain: string; topClients: DomainStats['topClients'] }) {
+function ExpandedDetail({ domain, topClients, topBlockRules }: { domain: string; topClients: DomainStats['topClients']; topBlockRules: DomainStats['topBlockRules'] }) {
   const [data, setData] = useState<{ domain: string; entries: Array<{ time: string; type: string; answer: Array<{ type: string; value: string; ttl: number }>; elapsedMs: number; cached: boolean; upstream: string; status: string }>; upstreams: Array<{ upstream: string; count: number; avg: number }> } | null>(null)
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState(false)
@@ -170,7 +173,8 @@ function ExpandedDetail({ domain, topClients }: { domain: string; topClients: Do
   useEffect(() => {
     setLoading(true)
     setErr(false)
-    fetch(`/api/analysis/domains/${encodeURIComponent(domain)}`)
+    // 使用查询参数避免 '.' 等特殊域名被 URL 路径标准化吃掉
+    fetch(`/api/analysis/domain-detail?domain=${encodeURIComponent(domain)}`)
       .then(r => { if (!r.ok) throw new Error(String(r.status)); return r.json() })
       .then(d => { setData(d); setLoading(false) })
       .catch(() => { setLoading(false); setErr(true) })
@@ -178,7 +182,7 @@ function ExpandedDetail({ domain, topClients }: { domain: string; topClients: Do
 
   if (loading) return (
     <tr key={`${domain}-detail`}>
-      <td colSpan={12} className="border-0 p-0">
+      <td colSpan={13} className="border-0 p-0">
         <div className="animate-pulse px-4 pb-3 pt-1" onClick={e => e.stopPropagation()}>
           <div className="min-h-[120px] rounded-lg p-4" style={{ background: 'var(--c-accent-soft)', border: '1px solid var(--c-border)' }} />
         </div>
@@ -187,7 +191,7 @@ function ExpandedDetail({ domain, topClients }: { domain: string; topClients: Do
   )
   if (err || !data) return (
     <tr key={`${domain}-detail`}>
-      <td colSpan={12} className="border-0 p-0">
+      <td colSpan={13} className="border-0 p-0">
         <div className="px-4 pb-3 pt-1">
           <div className="min-h-[120px] rounded-lg p-4 text-xs" style={{ background: 'var(--c-accent-soft)', border: '1px solid var(--c-border)' }}>
             <span style={{ color: 'var(--c-text-secondary)' }}>详情加载失败</span>
@@ -218,7 +222,7 @@ function ExpandedDetail({ domain, topClients }: { domain: string; topClients: Do
 
   return (
     <tr key={`${domain}-detail`}>
-      <td colSpan={12} className="border-0 p-0">
+      <td colSpan={13} className="border-0 p-0">
         <div className="px-4 pb-3 pt-1" onClick={e => e.stopPropagation()}>
           <div className="rounded-lg p-4 text-xs" style={{ background: 'var(--c-accent-soft)', border: '1px solid var(--c-border)' }}>
             {/* Export button */}
@@ -306,6 +310,21 @@ function ExpandedDetail({ domain, topClients }: { domain: string; topClients: Do
               </>
             )}
 
+            {/* Block rules */}
+            {topBlockRules.length > 0 && (
+              <>
+                <div className="mb-1.5 font-medium" style={{ color: 'var(--c-danger)' }}>拦截规则</div>
+                <div className="mb-3 space-y-0.5">
+                  {topBlockRules.map((r, i) => (
+                    <div key={i} className="flex items-center gap-3">
+                      <span className="max-w-[300px] truncate font-mono text-[11px]">{r.rule}</span>
+                      <span className="text-[10px] whitespace-nowrap" style={{ color: 'var(--c-text-secondary)' }}>×{r.count}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
             {/* Recent entries */}
             <div className="mb-1.5 font-medium" style={{ color: 'var(--c-text-secondary)' }}>最近查询</div>
             <div className="max-h-32 overflow-y-auto space-y-0.5">
@@ -376,6 +395,19 @@ const TableRow = memo(function TableRow({
             {fmtPct(d.cacheHitRate)}
           </span>
         </td>
+        <td className={cell}>
+          {d.blockedCount > 0 ? (
+            <span className="inline-flex items-center gap-1" style={{ color: 'var(--c-danger)' }}>
+              <span className="rounded-sm px-1.5 py-0.5 text-[11px] font-medium"
+                style={{ background: 'oklch(0.58 0.22 27 / 0.12)' }}>
+                {fmtCount(d.blockedCount)}
+              </span>
+              <span className="text-[10px]">{fmtPct(d.blockedRate)}</span>
+            </span>
+          ) : (
+            <span className="text-xs" style={{ color: 'var(--c-text-secondary)' }}>{fmtCount(0)}</span>
+          )}
+        </td>
         <td className={cell}>{fmtMs(d.uncached.p50)}</td>
         <td className={cell} style={slowStyle(d.uncached.p60)}>{fmtMs(d.uncached.p60)}</td>
         <td className={cell} style={slowStyle(d.uncached.p70)}>{fmtMs(d.uncached.p70)}</td>
@@ -389,7 +421,7 @@ const TableRow = memo(function TableRow({
         <td className={cell} style={slowStyle(d.uncached.max)}>{fmtMs(d.uncached.max)}</td>
       </tr>
       {expanded && (
-        <ExpandedDetail domain={d.domain} topClients={d.topClients} />
+        <ExpandedDetail domain={d.domain} topClients={d.topClients} topBlockRules={d.topBlockRules} />
       )}
     </>
   )

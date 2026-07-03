@@ -211,9 +211,14 @@ export function buildApp(opts?: AppOptions): FastifyInstance {
     return result
   })
 
-  // Domain detail
-  app.get<{ Params: { domain: string } }>('/api/analysis/domains/:domain', async (request, reply) => {
-    const domain = decodeURIComponent(request.params.domain)
+  // Domain detail — 使用查询参数避免 '.' 等特殊域名的路径标准化问题
+  app.get('/api/analysis/domain-detail', async (request, reply) => {
+    const query = request.query as Record<string, string>
+    const domain = query.domain ?? ''
+    if (!domain) {
+      reply.status(400)
+      return { error: 'domain query parameter is required' }
+    }
     const entries = cache.rawEntriesByDomain.get(domain)
 
     if (!entries) {

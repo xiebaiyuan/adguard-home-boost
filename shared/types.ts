@@ -12,6 +12,10 @@ export interface QueryLogEntry {
   client: string
   /** 客户端主机名（来自 AdGuardHome client_info） */
   clientName?: string
+  /** AdGuardHome 处理原因（NotFiltered=放行, Filtered/SafeBrowsing/Parental/BlockedByRule=拦截） */
+  blockReason?: string
+  /** 命中拦截规则的文本 */
+  blockRule?: string
 }
 
 /** 延时百分位统计 */
@@ -51,6 +55,15 @@ export interface DomainStats {
     ip: string
     /** 客户端主机名（来自 client_info.name） */
     name?: string
+    count: number
+  }>
+  /** 被拦截的查询次数 */
+  blockedCount: number
+  /** 拦截率 0~1 */
+  blockedRate: number
+  /** 命中拦截规则排行（按次数降序，最多 10 个） */
+  topBlockRules: Array<{
+    rule: string
     count: number
   }>
 }

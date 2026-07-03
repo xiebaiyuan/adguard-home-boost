@@ -43,7 +43,7 @@ describe('GET /api/analysis/domains', () => {
   })
 })
 
-describe('GET /api/analysis/domains/:domain', () => {
+describe('GET /api/analysis/domain-detail', () => {
   it('returns 200 with domain detail when data available', async () => {
     const entry: RawFetchedEntry = {
       elapsedMs: 10, cached: false, upstream: 'https://dns.cloudflare.com',
@@ -61,7 +61,7 @@ describe('GET /api/analysis/domains/:domain', () => {
       ]),
     })
 
-    const res = await appWithData.inject({ method: 'GET', url: '/api/analysis/domains/example.com' })
+    const res = await appWithData.inject({ method: 'GET', url: '/api/analysis/domain-detail?domain=example.com' })
     expect(res.statusCode).toBe(200)
     const body = JSON.parse(res.body)
     expect(body.domain).toBe('example.com')
@@ -72,8 +72,15 @@ describe('GET /api/analysis/domains/:domain', () => {
   })
 
   it('returns 404 for unknown domain', async () => {
-    const res = await app.inject({ method: 'GET', url: '/api/analysis/domains/unknown.com' })
+    const app = buildApp()
+    const res = await app.inject({ method: 'GET', url: '/api/analysis/domain-detail?domain=unknown.com' })
     expect(res.statusCode).toBe(404)
+  })
+
+  it('returns 400 when domain parameter missing', async () => {
+    const app = buildApp()
+    const res = await app.inject({ method: 'GET', url: '/api/analysis/domain-detail' })
+    expect(res.statusCode).toBe(400)
   })
 })
 
