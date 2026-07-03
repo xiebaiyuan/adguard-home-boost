@@ -40,6 +40,7 @@ export function PieChartCard({ title, data, suffix }: {
                 outerRadius={42}
                 paddingAngle={2}
                 fill={hasData ? undefined : 'var(--c-border)'}
+                isAnimationActive={false}
               >
                 {hasData && data.slice(0, 6).map((_, i) => (
                   <Cell key={i} fill={COLORS[i % COLORS.length]} />

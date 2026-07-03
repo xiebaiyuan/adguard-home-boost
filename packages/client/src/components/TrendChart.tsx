@@ -45,8 +45,8 @@ export function TrendChart({ history, timeUnit }: TrendChartProps) {
               contentStyle={{ background: 'var(--c-glass)', border: '1px solid var(--c-border)', borderRadius: 8, fontSize: 12 }}
               labelFormatter={(i: any) => `第 ${i + 1} ${unitLabel}`}
             />
-            <Area type="monotone" dataKey="queries" stroke="var(--c-accent)" strokeWidth={2} fill="url(#queriesGrad)" name="查询数" />
-            <Area type="monotone" dataKey="blocked" stroke="var(--c-danger)" strokeWidth={1.5} fill="url(#blockedGrad)" name="已屏蔽" />
+            <Area type="monotone" dataKey="queries" stroke="var(--c-accent)" strokeWidth={2} fill="url(#queriesGrad)" name="查询数" isAnimationActive={false} />
+            <Area type="monotone" dataKey="blocked" stroke="var(--c-danger)" strokeWidth={1.5} fill="url(#blockedGrad)" name="已屏蔽" isAnimationActive={false} />
           </AreaChart>
         </ResponsiveContainer>
       </div>

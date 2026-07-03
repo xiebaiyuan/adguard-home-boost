@@ -103,7 +103,7 @@ export function LatencyChart({ domains }: LatencyChartProps) {
               allowDecimals={false}
             />
             <Tooltip content={<ChartTooltip />} cursor={{ fill: 'var(--c-border)', opacity: 0.3 }} />
-            <Bar dataKey="count" radius={[6, 6, 0, 0]} maxBarSize={56}>
+            <Bar dataKey="count" radius={[6, 6, 0, 0]} maxBarSize={56} isAnimationActive={false}>
               {data.map((_, index) => (
                 <Cell key={index} fill={GRADIENT_COLORS[index % GRADIENT_COLORS.length]} />
               ))}
