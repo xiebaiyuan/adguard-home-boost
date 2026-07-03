@@ -35,10 +35,26 @@ export function StatsPanel({ onRefreshNeeded, queryTypeDistribution }: {
     }
   }, [loading, stats])
 
-  const blockedRatio = loading || !stats ? [] : [
+  const blockedRatio = stats ? [
     { name: '已屏蔽', value: stats.totalBlocked },
     { name: '已放行', value: stats.totalQueries },
-  ]
+  ] : []
+
+  // 骨架卡片 —— 与真实卡片同高，始终占位防止跳动
+  const SkeletonCard = ({ rows }: { rows?: number }) => (
+    <div className="glass-card rounded-xl p-4">
+      <div className="mb-3 h-3 w-24 rounded" style={{ background: 'var(--c-border)' }} />
+      <div className="space-y-2">
+        {Array.from({ length: rows ?? 6 }).map((_, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <div className="h-2 w-4 rounded" style={{ background: 'var(--c-border)' }} />
+            <div className="h-2 flex-1 rounded" style={{ background: 'var(--c-border)' }} />
+            <div className="h-2 w-12 rounded" style={{ background: 'var(--c-border)' }} />
+          </div>
+        ))}
+      </div>
+    </div>
+  )
 
   return (
     <div className="space-y-6">
@@ -88,11 +104,8 @@ export function StatsPanel({ onRefreshNeeded, queryTypeDistribution }: {
         </div>
       </div>
 
-      {/* 以下内容需要 stats 数据就绪后才渲染 */}
-      {!loading && stats && (<>
-
-      {/* 图表行 — 懒加载 chunk（Recharts 较重，不阻塞首屏） */}
-      {showCharts && (
+      {/* 图表行 — 懒加载 chunk；loading 时骨架占位 */}
+      {loading || !stats ? <div className="grid grid-cols-1 gap-4 lg:grid-cols-3"><SkeletonCard /><SkeletonCard /><SkeletonCard /></div> : showCharts && (
         <Suspense fallback={null}>
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             <PieChartCard
@@ -115,8 +128,8 @@ export function StatsPanel({ onRefreshNeeded, queryTypeDistribution }: {
         </Suspense>
       )}
 
-      {/* Tables row */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      {/* Tables row — loading 时骨架占位 */}
+      {loading || !stats ? <div className="grid grid-cols-1 gap-4 lg:grid-cols-3"><SkeletonCard /><SkeletonCard /><SkeletonCard rows={5} /></div> : (<>
         {/* Top clients */}
         <div className="glass-card rounded-xl p-4">
           <h4 className="mb-3 text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--c-text-secondary)' }}>
@@ -174,15 +187,17 @@ export function StatsPanel({ onRefreshNeeded, queryTypeDistribution }: {
             ))}
           </div>
         </div>
-      </div>
+      </>)}
 
-      {/* History trend chart */}
-      {showCharts && stats?.history && stats.history.length > 0 && (
+      {/* History trend chart — loading 时骨架占位 */}
+      {loading || !stats ? <div className="glass-card rounded-xl p-4 sm:p-6">
+        <div className="mb-3 h-3 w-24 rounded" style={{ background: 'var(--c-border)' }} />
+        <div className="h-48 rounded" style={{ background: 'var(--c-accent-soft)' }} />
+      </div> : showCharts && stats.history && stats.history.length > 0 && (
         <Suspense fallback={null}>
           <TrendChart history={stats.history} timeUnit={stats.timeSpan?.unit} />
         </Suspense>
       )}
-      </>)}
     </div>
   )
 }
