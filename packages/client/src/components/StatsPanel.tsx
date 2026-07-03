@@ -90,31 +90,29 @@ export function StatsPanel({ onRefreshNeeded, queryTypeDistribution }: {
         </Card>
       </div>
 
-      {/* ── 图表行 ── 3 列始终存在，图表内容 showCharts 后才渲染 — Card 占位与 PieChartCard 同高同结构 ── */}
+      {/* ── 图表行 ── 3 列始终存在，始终渲染 Card 占位防止布局跳动 ── */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        {showCharts ? (
-          <Suspense fallback={<Card title="屏蔽比例" ready={false}><div style={{ minHeight: '8rem' }} /></Card>}>
-            <PieChartCard title="屏蔽比例" data={blockedRatio} />
-          </Suspense>
-        ) : (
-          <Card title="屏蔽比例" ready={false}><div style={{ minHeight: '8rem' }} /></Card>
-        )}
-        {showCharts && queryTypeDistribution?.length ? (
-          <Suspense fallback={<Card title="查询类型分布" ready={false}><div style={{ minHeight: '8rem' }} /></Card>}>
-            <PieChartCard title="查询类型分布" data={queryTypeDistribution} />
-          </Suspense>
-        ) : (
-          <Card title="查询类型分布" ready={false}><div style={{ minHeight: '8rem' }} /></Card>
-        )}
-        {ready && stats!.topClients.length > 0 ? (showCharts ? (
-          <Suspense fallback={<Card title="客户端排行 (Top 6)" ready={false}><div style={{ minHeight: '8rem' }} /></Card>}>
-            <PieChartCard title="客户端排行 (Top 6)" data={stats!.topClients.map(c => ({ name: c.name || c.ip, value: c.count }))} />
-          </Suspense>
-        ) : (
-          <Card title="客户端排行 (Top 6)" ready={false}><div style={{ minHeight: '8rem' }} /></Card>
-        )) : (
-          <Card title="客户端排行 (Top 6)" ready={false}><div style={{ minHeight: '8rem' }} /></Card>
-        )}
+        <Card title="屏蔽比例" ready={showCharts}>
+          {showCharts ? (
+            <Suspense fallback={<div style={{ minHeight: '12rem' }} />}>
+              <PieChartCard title="屏蔽比例" data={blockedRatio} />
+            </Suspense>
+          ) : <div style={{ minHeight: '12rem' }} />}
+        </Card>
+        <Card title="查询类型分布" ready={showCharts && !!queryTypeDistribution?.length}>
+          {showCharts && queryTypeDistribution?.length ? (
+            <Suspense fallback={<div style={{ minHeight: '12rem' }} />}>
+              <PieChartCard title="查询类型分布" data={queryTypeDistribution} />
+            </Suspense>
+          ) : <div style={{ minHeight: '12rem' }} />}
+        </Card>
+        <Card title="客户端排行 (Top 6)" ready={showCharts && !!stats?.topClients.length}>
+          {showCharts && stats?.topClients.length ? (
+            <Suspense fallback={<div style={{ minHeight: '12rem' }} />}>
+              <PieChartCard title="客户端排行 (Top 6)" data={stats!.topClients.map(c => ({ name: c.name || c.ip, value: c.count }))} />
+            </Suspense>
+          ) : <div style={{ minHeight: '12rem' }} />}
+        </Card>
       </div>
 
       {/* ── 表格行 ── 3 列始终存在 ── */}
@@ -164,11 +162,18 @@ export function StatsPanel({ onRefreshNeeded, queryTypeDistribution }: {
         </Card>
       </div>
 
-      {/* ── 趋势图 ── */}
-      {showCharts && stats?.history && stats.history.length > 0 && (
-        <Suspense fallback={null}>
+      {/* ── 趋势图 ── 始终占位，防止挤动下方域名排行 ── */}
+      {showCharts && stats?.history && stats.history.length > 0 ? (
+        <Suspense fallback={<div className="glass-card rounded-xl p-4 sm:p-6" style={{ minHeight: '240px' }} />}>
           <TrendChart history={stats.history} timeUnit={stats.timeSpan!.unit} />
         </Suspense>
+      ) : (
+        <div className="glass-card rounded-xl p-4 sm:p-6" style={{ minHeight: '240px' }}>
+          <div className="mb-3 flex items-center gap-2">
+            <div className="h-3 w-1 rounded-full" style={{ background: 'var(--c-border)' }} />
+            <div className="h-4 w-20 rounded" style={{ background: 'var(--c-border)' }} />
+          </div>
+        </div>
       )}
     </div>
   )
