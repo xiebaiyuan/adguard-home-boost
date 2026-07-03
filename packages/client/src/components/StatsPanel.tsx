@@ -1,77 +1,11 @@
-import { useState, useEffect } from 'react'
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import { ClockCounterClockwise, Users, ShieldCheck } from '@phosphor-icons/react'
 import type { AdguardStats } from '../lib/types'
 import { fmtPreciseMs } from '../lib/format'
-import { TrendChart } from './TrendChart'
 
-const COLORS = [
-  'oklch(0.55 0.22 260 / 0.8)',
-  'oklch(0.68 0.16 75 / 0.8)',
-  'oklch(0.58 0.22 27 / 0.8)',
-  'oklch(0.55 0.18 150 / 0.8)',
-  'oklch(0.55 0.22 260 / 0.5)',
-  'oklch(0.68 0.16 75 / 0.5)',
-]
-
-function PieChartCard({ title, data, suffix }: {
-  title: string
-  data: Array<{ name: string; value: number }>
-  suffix?: string
-}) {
-  if (data.length === 0) return null
-
-  const total = data.reduce((s, d) => s + d.value, 0)
-
-  return (
-    <div className="glass-card rounded-xl p-4">
-      <h4 className="mb-3 text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--c-text-secondary)' }}>
-        {title}
-      </h4>
-      <div className="flex items-center gap-4">
-        <div className="h-28 w-28 shrink-0">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={data.slice(0, 6)}
-                dataKey="value"
-                nameKey="name"
-                cx="50%"
-                cy="50%"
-                innerRadius={24}
-                outerRadius={42}
-                paddingAngle={2}
-              >
-                {data.slice(0, 6).map((_, i) => (
-                  <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip
-                contentStyle={{ background: 'var(--c-glass)', border: '1px solid var(--c-border)', borderRadius: 8, fontSize: 12 }}
-                formatter={(val: any) => {
-                  const n = typeof val === 'number' ? val : 0
-                  return [`${((n / total) * 100).toFixed(1)}%`, title]
-                }}
-              />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-        <div className="min-w-0 flex-1 space-y-1">
-          {data.slice(0, 6).map((d, i) => (
-            <div key={d.name} className="flex items-center gap-2 text-xs">
-              <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: COLORS[i % COLORS.length] }} />
-              <span className="truncate" style={{ color: 'var(--c-text)' }}>{d.name}</span>
-              <span className="ml-auto shrink-0 tabular-nums" style={{ color: 'var(--c-text-secondary)' }}>
-                {((d.value / total) * 100).toFixed(1)}%
-                {suffix ? ` · ${d.value}${suffix}` : ''}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  )
-}
+// 图表组件懒加载：recharts (~65KB gz) 只在图表实际显示时才下载
+const PieChartCard = lazy(() => import('./PieChartCard'))
+const TrendChart = lazy(() => import('./TrendChart'))
 
 export function StatsPanel({ onRefreshNeeded, queryTypeDistribution }: {
   onRefreshNeeded: () => void
@@ -155,26 +89,28 @@ export function StatsPanel({ onRefreshNeeded, queryTypeDistribution }: {
         </div>
       </div>
 
-      {/* 图表行 — 延迟渲染（Recharts 组件较重） */}
+      {/* 图表行 — 懒加载 chunk（Recharts 较重，不阻塞首屏） */}
       {showCharts && (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          <PieChartCard
-            title="屏蔽比例"
-            data={blockedRatio}
-          />
-          {queryTypeDistribution && queryTypeDistribution.length > 0 && (
+        <Suspense fallback={null}>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             <PieChartCard
-              title="查询类型分布"
-              data={queryTypeDistribution}
+              title="屏蔽比例"
+              data={blockedRatio}
             />
-          )}
-          {stats.topClients.length > 0 && (
-            <PieChartCard
-              title="客户端排行 (Top 6)"
-              data={stats.topClients.map(c => ({ name: c.name || c.ip, value: c.count }))}
-            />
-          )}
-        </div>
+            {queryTypeDistribution && queryTypeDistribution.length > 0 && (
+              <PieChartCard
+                title="查询类型分布"
+                data={queryTypeDistribution}
+              />
+            )}
+            {stats.topClients.length > 0 && (
+              <PieChartCard
+                title="客户端排行 (Top 6)"
+                data={stats.topClients.map(c => ({ name: c.name || c.ip, value: c.count }))}
+              />
+            )}
+          </div>
+        </Suspense>
       )}
 
       {/* Tables row */}
@@ -240,7 +176,9 @@ export function StatsPanel({ onRefreshNeeded, queryTypeDistribution }: {
 
       {/* History trend chart */}
       {showCharts && stats.history && stats.history.length > 0 && (
-        <TrendChart history={stats.history} timeUnit={stats.timeSpan.unit} />
+        <Suspense fallback={null}>
+          <TrendChart history={stats.history} timeUnit={stats.timeSpan.unit} />
+        </Suspense>
       )}
     </div>
   )

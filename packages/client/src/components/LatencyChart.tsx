@@ -114,3 +114,5 @@ export function LatencyChart({ domains }: LatencyChartProps) {
     </div>
   )
 }
+
+export default LatencyChart

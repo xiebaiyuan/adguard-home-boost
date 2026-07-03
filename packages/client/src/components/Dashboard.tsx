@@ -1,9 +1,8 @@
 import { FileCsv, ArrowClockwise, Gear, ChatCircleText, ShieldCheck, Prohibit, Trash, Sliders } from '@phosphor-icons/react'
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react'
 import { useAnalysis } from '../hooks/useAnalysis'
 import { useAdguard } from '../hooks/useAdguard'
 import { KpiCards } from './KpiCards'
-import { LatencyChart } from './LatencyChart'
 import { DomainTable } from './DomainTable'
 import { StatsPanel } from './StatsPanel'
 import { CollapseSection } from './CollapseSection'
@@ -12,6 +11,9 @@ import { ManagementDialog } from './ManagementDialog'
 import { exportCsv } from '../lib/csv'
 import { buildPrompt, copyToClipboard } from '../lib/prompt'
 import { TIME_OPTIONS } from '../lib/format'
+
+// 懒加载：recharts 链路只在需要图表时下载
+const LatencyChart = lazy(() => import('./LatencyChart'))
 
 function getPanelVisible(key: string, def: boolean): boolean {
   const stored = localStorage.getItem(key)
@@ -369,7 +371,9 @@ export function Dashboard() {
       {/* Latency Chart */}
       <CollapseSection title="域名延时分布" storageKey="collapse_latency">
         <div className="mb-6 fade-in-content">
-          <LatencyChart domains={domains} mode="uncached" />
+          <Suspense fallback={<div className="glass-card rounded-xl py-12" />}>
+            <LatencyChart domains={domains} mode="uncached" />
+          </Suspense>
         </div>
       </CollapseSection>
 

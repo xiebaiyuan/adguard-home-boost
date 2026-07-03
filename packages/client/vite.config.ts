@@ -16,9 +16,11 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id: string) {
-          if (id.includes('recharts')) return 'vendor-charts'
+          if (!id.includes('node_modules')) return
           if (id.includes('phosphor-icons')) return 'vendor-icons'
-          if (id.includes('node_modules')) return 'vendor'
+          // 只钉住急加载的 react 生态；recharts 及其依赖树（d3/redux/immer...）
+          // 不指定 chunk，让 Rollup 跟随 lazy import 自动放入懒加载 chunk
+          if (/[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/.test(id)) return 'vendor'
         },
       },
     },
