@@ -1,6 +1,13 @@
 import { useMemo } from 'react'
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts'
 
+/** 裁剪前导全零条目，使图表从第一个有数据的日期开始 */
+function trimLeadingZeros(data: Array<{ queries: number; blocked: number }>): Array<{ queries: number; blocked: number }> {
+  const firstNonZero = data.findIndex(d => d.queries > 0 || d.blocked > 0)
+  if (firstNonZero <= 0) return data
+  return data.slice(firstNonZero)
+}
+
 interface TrendChartProps {
   history: Array<{ queries: number; blocked: number }>
   timeUnit: string
@@ -8,9 +15,14 @@ interface TrendChartProps {
 
 export function TrendChart({ history, timeUnit }: TrendChartProps) {
   const unitLabel = timeUnit === 'days' ? '天' : timeUnit
-  const chartData = useMemo(() => history.map((h, i) => ({ ...h, index: i })), [history])
+  const chartData = useMemo(() => {
+    const trimmed = trimLeadingZeros(history)
+    return trimmed.map((h, i) => ({ ...h, index: i }))
+  }, [history])
 
-  if (!history || history.length === 0) return null
+  if (!chartData || chartData.length === 0) return null
+
+  const skipped = history.length - chartData.length
 
   return (
     <div className="glass-card rounded-xl p-4 sm:p-6">
@@ -18,7 +30,7 @@ export function TrendChart({ history, timeUnit }: TrendChartProps) {
         <div className="h-3 w-1 rounded-full" style={{ background: 'var(--c-accent)' }} />
         <h3 className="text-sm font-medium">查询趋势</h3>
         <span className="text-xs" style={{ color: 'var(--c-text-secondary)' }}>
-          过去 {history.length} {unitLabel}
+          最近 {chartData.length} {unitLabel}{skipped > 0 && `（前 ${skipped} ${unitLabel}无数据已省略）`}
         </span>
       </div>
       <div className="h-48">
