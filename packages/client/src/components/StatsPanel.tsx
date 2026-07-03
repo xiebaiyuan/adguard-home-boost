@@ -7,6 +7,29 @@ import { fmtPreciseMs } from '../lib/format'
 const PieChartCard = lazy(() => import('./PieChartCard'))
 const TrendChart = lazy(() => import('./TrendChart'))
 
+/** 卡片容器：永久存在于 DOM 中，仅内容淡入。无骨架、无跳动。 */
+function Card({ title, icon, children, ready }: {
+  title: string
+  icon?: React.ReactNode
+  children: React.ReactNode
+  ready: boolean
+}) {
+  return (
+    <div className="glass-card rounded-xl p-4" style={{ minHeight: '140px' }}>
+      <h4 className="mb-3 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--c-text-secondary)' }}>
+        {icon}{title}
+      </h4>
+      <div style={{
+        opacity: ready ? 1 : 0,
+        transition: 'opacity 180ms ease-out, transform 180ms ease-out',
+        transform: ready ? 'none' : 'translateY(4px)',
+      }}>
+        {children}
+      </div>
+    </div>
+  )
+}
+
 export function StatsPanel({ onRefreshNeeded, queryTypeDistribution }: {
   onRefreshNeeded: () => void
   queryTypeDistribution?: Array<{ name: string; value: number }>
@@ -14,7 +37,6 @@ export function StatsPanel({ onRefreshNeeded, queryTypeDistribution }: {
   const [stats, setStats] = useState<AdguardStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [_error, setError] = useState<string | null>(null)
-  // 延迟渲染图表组件，避免展开时主线程阻塞卡顿
   const [showCharts, setShowCharts] = useState(false)
 
   useEffect(() => {
@@ -35,109 +57,72 @@ export function StatsPanel({ onRefreshNeeded, queryTypeDistribution }: {
     }
   }, [loading, stats])
 
-  const blockedRatio = stats ? [
-    { name: '已屏蔽', value: stats.totalBlocked },
-    { name: '已放行', value: stats.totalQueries },
+  const ready = !loading && stats !== null
+  const blockedRatio = ready ? [
+    { name: '已屏蔽', value: stats!.totalBlocked },
+    { name: '已放行', value: stats!.totalQueries },
   ] : []
-
-  // 骨架卡片 —— 与真实卡片同高，始终占位防止跳动
-  const SkeletonCard = ({ rows }: { rows?: number }) => (
-    <div className="glass-card rounded-xl p-4">
-      <div className="mb-3 h-3 w-24 rounded" style={{ background: 'var(--c-border)' }} />
-      <div className="space-y-2">
-        {Array.from({ length: rows ?? 6 }).map((_, i) => (
-          <div key={i} className="flex items-center gap-2">
-            <div className="h-2 w-4 rounded" style={{ background: 'var(--c-border)' }} />
-            <div className="h-2 flex-1 rounded" style={{ background: 'var(--c-border)' }} />
-            <div className="h-2 w-12 rounded" style={{ background: 'var(--c-border)' }} />
-          </div>
-        ))}
-      </div>
-    </div>
-  )
 
   return (
     <div className="space-y-6">
-      {/* KPI 行 — loading 时也渲染骨架，防止后续内容跳动 */}
+
+      {/* ── KPI 行 ── 永久 4 卡片，数据到了淡入数字 ── */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="glass-card rounded-xl p-4">
-          <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--c-text-secondary)' }}>
-            <ClockCounterClockwise size={14} />
-            平均处理
-          </div>
+        <Card title="平均处理" icon={<ClockCounterClockwise size={14} />} ready={ready}>
           <div className="text-xl font-semibold tabular-nums gradient-text" style={{ minHeight: '1.5rem' }}>
-            {loading || !stats ? '—' : fmtPreciseMs(stats.avgProcessingTime * 1000)}
+            {ready ? fmtPreciseMs(stats!.avgProcessingTime * 1000) : '—'}
           </div>
-        </div>
-        <div className="glass-card rounded-xl p-4">
-          <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--c-text-secondary)' }}>
-            <span className="h-2 w-2 rounded-full" style={{ background: 'var(--c-accent)' }} />
-            上游服务数
-          </div>
+        </Card>
+        <Card title="上游服务数" icon={<span className="h-2 w-2 rounded-full" style={{ background: 'var(--c-accent)' }} />} ready={ready}>
           <div className="text-xl font-semibold tabular-nums gradient-text" style={{ minHeight: '1.5rem' }}>
-            {loading || !stats ? '—' : stats.topUpstreams.length}
+            {ready ? stats!.topUpstreams.length : '—'}
           </div>
-        </div>
-        <div className="glass-card rounded-xl p-4">
-          <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--c-text-secondary)' }}>
-            <ShieldCheck size={14} />
-            已屏蔽
+        </Card>
+        <Card title="已屏蔽" icon={<ShieldCheck size={14} />} ready={ready}>
+          <div className="text-xl font-semibold tabular-nums" style={{ minHeight: '1.5rem', color: ready ? 'var(--c-danger)' : 'inherit' }}>
+            {ready ? <>{stats!.totalBlocked.toLocaleString()}<span className="ml-1 text-sm font-normal" style={{ color: 'var(--c-text-secondary)' }}>({((stats!.totalBlocked / (stats!.totalQueries + stats!.totalBlocked)) * 100).toFixed(1)}%)</span></> : '—'}
           </div>
-          <div className="text-xl font-semibold tabular-nums" style={{ color: 'var(--c-danger)', minHeight: '1.5rem' }}>
-            {loading || !stats ? '—' : (
-              <>{stats.totalBlocked.toLocaleString()}
-                <span className="ml-1 text-sm font-normal" style={{ color: 'var(--c-text-secondary)' }}>
-                  ({((stats.totalBlocked / (stats.totalQueries + stats.totalBlocked)) * 100).toFixed(1)}%)
-                </span>
-              </>
-            )}
-          </div>
-        </div>
-        <div className="glass-card rounded-xl p-4">
-          <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--c-text-secondary)' }}>
-            <Users size={14} />
-            客户端数
-          </div>
+        </Card>
+        <Card title="客户端数" icon={<Users size={14} />} ready={ready}>
           <div className="text-xl font-semibold tabular-nums gradient-text" style={{ minHeight: '1.5rem' }}>
-            {loading || !stats ? '—' : stats.topClients.length}
+            {ready ? stats!.topClients.length : '—'}
           </div>
-        </div>
+        </Card>
       </div>
 
-      {/* 图表行 — 懒加载 chunk；loading 时骨架占位 */}
-      {loading || !stats ? <div className="grid grid-cols-1 gap-4 lg:grid-cols-3"><SkeletonCard /><SkeletonCard /><SkeletonCard /></div> : showCharts && (
-        <Suspense fallback={null}>
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-            <PieChartCard
-              title="屏蔽比例"
-              data={blockedRatio}
-            />
-            {queryTypeDistribution && queryTypeDistribution.length > 0 && (
-              <PieChartCard
-                title="查询类型分布"
-                data={queryTypeDistribution}
-              />
-            )}
-            {stats.topClients.length > 0 && (
-              <PieChartCard
-                title="客户端排行 (Top 6)"
-                data={stats.topClients.map(c => ({ name: c.name || c.ip, value: c.count }))}
-              />
-            )}
-          </div>
-        </Suspense>
-      )}
+      {/* ── 图表行 ── 3 列始终存在，图表内容 showCharts 后才渲染 — Card 占位与 PieChartCard 同高同结构 ── */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        {showCharts ? (
+          <Suspense fallback={<Card title="屏蔽比例" ready={false}><div style={{ minHeight: '8rem' }} /></Card>}>
+            <PieChartCard title="屏蔽比例" data={blockedRatio} />
+          </Suspense>
+        ) : (
+          <Card title="屏蔽比例" ready={false}><div style={{ minHeight: '8rem' }} /></Card>
+        )}
+        {showCharts && queryTypeDistribution?.length ? (
+          <Suspense fallback={<Card title="查询类型分布" ready={false}><div style={{ minHeight: '8rem' }} /></Card>}>
+            <PieChartCard title="查询类型分布" data={queryTypeDistribution} />
+          </Suspense>
+        ) : (
+          <Card title="查询类型分布" ready={false}><div style={{ minHeight: '8rem' }} /></Card>
+        )}
+        {ready && stats!.topClients.length > 0 ? (showCharts ? (
+          <Suspense fallback={<Card title="客户端排行 (Top 6)" ready={false}><div style={{ minHeight: '8rem' }} /></Card>}>
+            <PieChartCard title="客户端排行 (Top 6)" data={stats!.topClients.map(c => ({ name: c.name || c.ip, value: c.count }))} />
+          </Suspense>
+        ) : (
+          <Card title="客户端排行 (Top 6)" ready={false}><div style={{ minHeight: '8rem' }} /></Card>
+        )) : (
+          <Card title="客户端排行 (Top 6)" ready={false}><div style={{ minHeight: '8rem' }} /></Card>
+        )}
+      </div>
 
-      {/* Tables row — loading 时骨架占位 */}
-      {loading || !stats ? <div className="grid grid-cols-1 gap-4 lg:grid-cols-3"><SkeletonCard /><SkeletonCard /><SkeletonCard rows={5} /></div> : (<>
-        {/* Top clients */}
-        <div className="glass-card rounded-xl p-4">
-          <h4 className="mb-3 text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--c-text-secondary)' }}>
-            <Users size={14} className="mr-1 inline" />
-            客户端排行
-          </h4>
+      {/* ── 表格行 ── 3 列始终存在 ── */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        {/* 客户端排行 */}
+        <Card title="客户端排行" icon={<Users size={14} className="mr-1 inline" />} ready={ready}>
           <div className="space-y-1">
-            {stats.topClients.map((c, i) => (
+            {ready && stats!.topClients.length > 0 ? stats!.topClients.map((c, i) => (
               <div key={c.ip} className="flex items-center gap-2 text-xs">
                 <span className="w-4 shrink-0 text-right tabular-nums" style={{ color: 'var(--c-text-secondary)' }}>{i + 1}</span>
                 <span className="font-mono text-[11px]">
@@ -145,19 +130,15 @@ export function StatsPanel({ onRefreshNeeded, queryTypeDistribution }: {
                 </span>
                 <span className="ml-auto shrink-0 tabular-nums" style={{ color: 'var(--c-text-secondary)' }}>{c.count.toLocaleString()}</span>
               </div>
-            ))}
+            )) : <div className="h-4" />}
           </div>
-        </div>
+        </Card>
 
-        {/* Top blocked domains */}
-        <div className="glass-card rounded-xl p-4">
-          <h4 className="mb-3 text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--c-text-secondary)' }}>
-            <ShieldCheck size={14} className="mr-1 inline" />
-            屏蔽域名排行
-          </h4>
-          {stats.topBlockedDomains.length > 0 ? (
+        {/* 屏蔽域名排行 */}
+        <Card title="屏蔽域名排行" icon={<ShieldCheck size={14} className="mr-1 inline" />} ready={ready}>
+          {ready && stats!.topBlockedDomains.length > 0 ? (
             <div className="space-y-1">
-              {stats.topBlockedDomains.slice(0, 10).map((d, i) => (
+              {stats!.topBlockedDomains.slice(0, 10).map((d, i) => (
                 <div key={d.domain} className="flex items-center gap-2 text-xs">
                   <span className="w-4 shrink-0 text-right tabular-nums" style={{ color: 'var(--c-text-secondary)' }}>{i + 1}</span>
                   <span className="truncate">{d.domain}</span>
@@ -165,37 +146,28 @@ export function StatsPanel({ onRefreshNeeded, queryTypeDistribution }: {
                 </div>
               ))}
             </div>
-          ) : (
-            <span className="text-xs" style={{ color: 'var(--c-text-secondary)' }}>暂无屏蔽记录</span>
-          )}
-        </div>
+          ) : <span className="text-xs" style={{ color: 'var(--c-text-secondary)' }}>{ready ? '暂无屏蔽记录' : ''}</span>}
+        </Card>
 
-        {/* Upstream response times */}
-        <div className="glass-card rounded-xl p-4">
-          <h4 className="mb-3 text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--c-text-secondary)' }}>
-            <span className="h-2 w-2 rounded-full mr-1 inline-block" style={{ background: 'var(--c-accent)' }} />
-            上游服务响应
-          </h4>
+        {/* 上游服务响应 */}
+        <Card title="上游服务响应" icon={<span className="h-2 w-2 rounded-full mr-1 inline-block" style={{ background: 'var(--c-accent)' }} />} ready={ready}>
           <div className="space-y-1">
-            {stats.topUpstreams.map(u => (
+            {ready && stats!.topUpstreams.length > 0 ? stats!.topUpstreams.map(u => (
               <div key={u.upstream} className="flex items-center gap-2 text-xs">
                 <span className="max-w-[120px] truncate font-mono text-[11px]">{u.upstream}</span>
                 <span className="ml-auto shrink-0 tabular-nums" style={{ color: 'var(--c-text-secondary)' }}>
                   {u.count.toLocaleString()} 次 · {fmtPreciseMs(u.avgTime * 1000)}
                 </span>
               </div>
-            ))}
+            )) : <div className="h-4" />}
           </div>
-        </div>
-      </>)}
+        </Card>
+      </div>
 
-      {/* History trend chart — loading 时骨架占位 */}
-      {loading || !stats ? <div className="glass-card rounded-xl p-4 sm:p-6">
-        <div className="mb-3 h-3 w-24 rounded" style={{ background: 'var(--c-border)' }} />
-        <div className="h-48 rounded" style={{ background: 'var(--c-accent-soft)' }} />
-      </div> : showCharts && stats.history && stats.history.length > 0 && (
+      {/* ── 趋势图 ── */}
+      {showCharts && stats?.history && stats.history.length > 0 && (
         <Suspense fallback={null}>
-          <TrendChart history={stats.history} timeUnit={stats.timeSpan?.unit} />
+          <TrendChart history={stats.history} timeUnit={stats.timeSpan!.unit} />
         </Suspense>
       )}
     </div>
