@@ -26,6 +26,10 @@ interface ApiLogEntry {
   cached: boolean
   upstream: string
   status: string
+  /** 客户端 IP，如 "192.168.1.100" */
+  client: string
+  /** 客户端信息（名称等） */
+  client_info?: { name?: string }
   answer?: Array<{ type: string; value: string; ttl: number }>
   answer_dnssec?: boolean
 }
@@ -46,6 +50,8 @@ export async function fetchQueryLog(config: AdguardConfig): Promise<RawFetchedEn
   let olderThan: string | undefined
   let pages = 0
   const cutoff = new Date(Date.now() - (config.timeRangeHours ?? 24) * 3_600_000)
+  // 客户端 IP → 主机名映射（首次出现为准）
+  const clientNameMap = new Map<string, string>()
 
   while (true) {
     const params = new URLSearchParams({ limit: String(PAGE_SIZE) })
@@ -90,12 +96,20 @@ export async function fetchQueryLog(config: AdguardConfig): Promise<RawFetchedEn
     }
 
     for (const entry of data) {
+      // 客户端名称映射（首次出现为准）
+      const client = entry.client ?? ''
+      if (client && !clientNameMap.has(client) && entry.client_info?.name) {
+        clientNameMap.set(client, entry.client_info.name)
+      }
+
       allEntries.push({
         elapsedMs: parseFloat(entry.elapsedMs),
         cached: entry.cached,
         upstream: entry.upstream ?? '',
         status: entry.status ?? '',
         question: { name: entry.question.name, type: entry.question.type },
+        client,
+        clientName: clientNameMap.get(client),
         time: entry.time,
         answer: (entry.answer ?? []).map(a => ({ type: a.type, value: a.value, ttl: a.ttl })),
       })

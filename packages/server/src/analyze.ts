@@ -27,8 +27,9 @@ function computeDomainStats(domain: string, entries: QueryLogEntry[]): DomainSta
   const allLatencies: number[] = []
   const queryTypes: Record<string, number> = {}
   let cachedCount = 0
+  const clientCounts = new Map<string, { ip: string; name?: string; count: number }>()
 
-  // 单次遍历：同时收集缓存统计、延时列表、查询类型分布
+  // 单次遍历：同时收集缓存统计、延时列表、查询类型分布、客户端排行
   for (const e of entries) {
     allLatencies.push(e.elapsedMs)
     if (e.cached) {
@@ -38,7 +39,26 @@ function computeDomainStats(domain: string, entries: QueryLogEntry[]): DomainSta
     }
     const t = e.question.type
     queryTypes[t] = (queryTypes[t] ?? 0) + 1
+
+    // 客户端排行
+    if (e.client) {
+      const existing = clientCounts.get(e.client)
+      if (existing) {
+        existing.count++
+      } else {
+        clientCounts.set(e.client, {
+          ip: e.client,
+          name: e.clientName || undefined,
+          count: 1,
+        })
+      }
+    }
   }
+
+  // 按次数降序取前 10
+  const topClients = Array.from(clientCounts.values())
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10)
 
   return {
     domain,
@@ -48,6 +68,7 @@ function computeDomainStats(domain: string, entries: QueryLogEntry[]): DomainSta
     queryTypes,
     uncached: computeLatencyStats(uncachedLatencies),
     all: computeLatencyStats(allLatencies),
+    topClients,
   }
 }
 

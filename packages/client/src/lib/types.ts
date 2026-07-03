@@ -24,6 +24,11 @@ export interface DomainStats {
   queryTypes: Record<string, number>
   uncached: LatencyStats
   all: LatencyStats
+  topClients: Array<{
+    ip: string
+    name?: string
+    count: number
+  }>
 }
 
 export interface AnalysisSummary {

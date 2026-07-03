@@ -162,7 +162,7 @@ export function DomainTable({ domains }: DomainTableProps) {
 }
 
 // Individual row with optional expanded detail
-function ExpandedDetail({ domain }: { domain: string }) {
+function ExpandedDetail({ domain, topClients }: { domain: string; topClients: DomainStats['topClients'] }) {
   const [data, setData] = useState<{ domain: string; entries: Array<{ time: string; type: string; answer: Array<{ type: string; value: string; ttl: number }>; elapsedMs: number; cached: boolean; upstream: string; status: string }>; upstreams: Array<{ upstream: string; count: number; avg: number }> } | null>(null)
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState(false)
@@ -286,6 +286,26 @@ function ExpandedDetail({ domain }: { domain: string }) {
               </>
             )}
 
+            {/* Client sources — topClients 在 DomainStats 中已预聚合，直接展示无需等待 API */}
+            {topClients.length > 0 && (
+              <>
+                <div className="mb-1.5 font-medium" style={{ color: 'var(--c-text-secondary)' }}>客户端来源</div>
+                <div className="mb-3 space-y-0.5">
+                  {topClients.map(c => (
+                    <div key={c.ip} className="flex items-center gap-3">
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="font-mono text-[11px]">{c.ip}</span>
+                        {c.name && (
+                          <span className="text-[10px]" style={{ color: 'var(--c-text-secondary)' }}>({c.name})</span>
+                        )}
+                      </span>
+                      <span style={{ color: 'var(--c-text-secondary)' }}>{c.count} 次</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
             {/* Recent entries */}
             <div className="mb-1.5 font-medium" style={{ color: 'var(--c-text-secondary)' }}>最近查询</div>
             <div className="max-h-32 overflow-y-auto space-y-0.5">
@@ -369,7 +389,7 @@ const TableRow = memo(function TableRow({
         <td className={cell} style={slowStyle(d.uncached.max)}>{fmtMs(d.uncached.max)}</td>
       </tr>
       {expanded && (
-        <ExpandedDetail domain={d.domain} />
+        <ExpandedDetail domain={d.domain} topClients={d.topClients} />
       )}
     </>
   )

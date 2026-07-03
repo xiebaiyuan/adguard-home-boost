@@ -48,6 +48,7 @@ describe('GET /api/analysis/domains/:domain', () => {
     const entry: RawFetchedEntry = {
       elapsedMs: 10, cached: false, upstream: 'https://dns.cloudflare.com',
       status: 'NOERROR', question: { name: 'example.com', type: 'A' },
+      client: '192.168.1.100',
       time: '2024-01-01T00:00:00Z',
       answer: [],
     }

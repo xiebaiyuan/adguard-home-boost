@@ -9,6 +9,8 @@ function q(name: string, elapsedMs: number, cached = false, type = 'A'): QueryLo
     upstream: 'tls://dns.quad9.net',
     status: 'NOERROR',
     question: { name, type },
+    client: '192.168.1.100',
+    clientName: 'test-device',
   }
 }
 
