@@ -87,6 +87,8 @@ export function useAdguard() {
 
   const toggleProtection = useCallback(async (enabled: boolean) => {
     setSaving('protection')
+    // 乐观更新：立即切换 UI 状态，不等 API 回来
+    setStatus(prev => prev ? { ...prev, protectionEnabled: enabled } : prev)
     try {
       await adguardPost('protection', { enabled, duration: 0 })
       await refresh()
