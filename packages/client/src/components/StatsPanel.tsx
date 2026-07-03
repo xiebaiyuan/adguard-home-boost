@@ -13,7 +13,7 @@ export function StatsPanel({ onRefreshNeeded, queryTypeDistribution }: {
 }) {
   const [stats, setStats] = useState<AdguardStats | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [_error, setError] = useState<string | null>(null)
   // 延迟渲染图表组件，避免展开时主线程阻塞卡顿
   const [showCharts, setShowCharts] = useState(false)
 
@@ -35,26 +35,22 @@ export function StatsPanel({ onRefreshNeeded, queryTypeDistribution }: {
     }
   }, [loading, stats])
 
-  if (loading) return null
-
-  if (error || !stats) return null
-
-  const blockedRatio = [
+  const blockedRatio = loading || !stats ? [] : [
     { name: '已屏蔽', value: stats.totalBlocked },
     { name: '已放行', value: stats.totalQueries },
   ]
 
   return (
     <div className="space-y-6">
-      {/* KPI 行 — 立即渲染（轻量） */}
+      {/* KPI 行 — loading 时也渲染骨架，防止后续内容跳动 */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div className="glass-card rounded-xl p-4">
           <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--c-text-secondary)' }}>
             <ClockCounterClockwise size={14} />
             平均处理
           </div>
-          <div className="text-xl font-semibold tabular-nums gradient-text">
-            {fmtPreciseMs(stats.avgProcessingTime * 1000)} {/* API returns seconds */}
+          <div className="text-xl font-semibold tabular-nums gradient-text" style={{ minHeight: '1.5rem' }}>
+            {loading || !stats ? '—' : fmtPreciseMs(stats.avgProcessingTime * 1000)}
           </div>
         </div>
         <div className="glass-card rounded-xl p-4">
@@ -62,8 +58,8 @@ export function StatsPanel({ onRefreshNeeded, queryTypeDistribution }: {
             <span className="h-2 w-2 rounded-full" style={{ background: 'var(--c-accent)' }} />
             上游服务数
           </div>
-          <div className="text-xl font-semibold tabular-nums gradient-text">
-            {stats.topUpstreams.length}
+          <div className="text-xl font-semibold tabular-nums gradient-text" style={{ minHeight: '1.5rem' }}>
+            {loading || !stats ? '—' : stats.topUpstreams.length}
           </div>
         </div>
         <div className="glass-card rounded-xl p-4">
@@ -71,11 +67,14 @@ export function StatsPanel({ onRefreshNeeded, queryTypeDistribution }: {
             <ShieldCheck size={14} />
             已屏蔽
           </div>
-          <div className="text-xl font-semibold tabular-nums" style={{ color: 'var(--c-danger)' }}>
-            {stats.totalBlocked.toLocaleString()}
-            <span className="ml-1 text-sm font-normal" style={{ color: 'var(--c-text-secondary)' }}>
-              ({((stats.totalBlocked / (stats.totalQueries + stats.totalBlocked)) * 100).toFixed(1)}%)
-            </span>
+          <div className="text-xl font-semibold tabular-nums" style={{ color: 'var(--c-danger)', minHeight: '1.5rem' }}>
+            {loading || !stats ? '—' : (
+              <>{stats.totalBlocked.toLocaleString()}
+                <span className="ml-1 text-sm font-normal" style={{ color: 'var(--c-text-secondary)' }}>
+                  ({((stats.totalBlocked / (stats.totalQueries + stats.totalBlocked)) * 100).toFixed(1)}%)
+                </span>
+              </>
+            )}
           </div>
         </div>
         <div className="glass-card rounded-xl p-4">
@@ -83,11 +82,14 @@ export function StatsPanel({ onRefreshNeeded, queryTypeDistribution }: {
             <Users size={14} />
             客户端数
           </div>
-          <div className="text-xl font-semibold tabular-nums gradient-text">
-            {stats.topClients.length}
+          <div className="text-xl font-semibold tabular-nums gradient-text" style={{ minHeight: '1.5rem' }}>
+            {loading || !stats ? '—' : stats.topClients.length}
           </div>
         </div>
       </div>
+
+      {/* 以下内容需要 stats 数据就绪后才渲染 */}
+      {!loading && stats && (<>
 
       {/* 图表行 — 懒加载 chunk（Recharts 较重，不阻塞首屏） */}
       {showCharts && (
@@ -175,11 +177,12 @@ export function StatsPanel({ onRefreshNeeded, queryTypeDistribution }: {
       </div>
 
       {/* History trend chart */}
-      {showCharts && stats.history && stats.history.length > 0 && (
+      {showCharts && stats?.history && stats.history.length > 0 && (
         <Suspense fallback={null}>
-          <TrendChart history={stats.history} timeUnit={stats.timeSpan.unit} />
+          <TrendChart history={stats.history} timeUnit={stats.timeSpan?.unit} />
         </Suspense>
       )}
+      </>)}
     </div>
   )
 }

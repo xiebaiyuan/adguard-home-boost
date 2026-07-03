@@ -212,25 +212,27 @@ export function Dashboard() {
             />
             统计
           </label>
-          {/* Protection toggle */}
-          {adguard.status && (() => {
-            const prot = adguard.status.protectionEnabled
-            return (
-              <button
-                onClick={() => adguard.toggleProtection(!prot)}
-                disabled={adguard.saving === 'protection'}
-                className="inline-flex cursor-pointer items-center gap-1 rounded-lg px-2 py-1.5 text-[10px] font-medium uppercase tracking-wider transition-colors disabled:opacity-60"
-                style={{
-                  background: prot ? 'oklch(0.55 0.18 150 / 0.1)' : 'oklch(0.58 0.22 27 / 0.1)',
-                  color: prot ? 'var(--c-success)' : 'var(--c-danger)',
-                  border: 'none',
-                }}
-              >
-                {prot ? <ShieldCheck size={12} /> : <Prohibit size={12} />}
-                {prot ? '保护中' : '已暂停'}
-              </button>
-            )
-          })()}
+          {/* Protection toggle — 始终占位（min-width 防止 status 就绪前按钮凭空出现） */}
+          <div className="inline-flex cursor-pointer items-center gap-1 rounded-lg px-2 py-1.5 transition-colors" style={{ color: adguard.status?.protectionEnabled ? 'var(--c-success)' : 'var(--c-text-secondary)', minWidth: '70px', visibility: adguard.status ? 'visible' : 'hidden' }}>
+            {adguard.status ? (() => {
+              const prot = adguard.status.protectionEnabled
+              return (
+                <button
+                  onClick={() => adguard.toggleProtection(!prot)}
+                  disabled={adguard.saving === 'protection'}
+                  className="inline-flex cursor-pointer items-center gap-1 text-[10px] font-medium uppercase tracking-wider disabled:opacity-60"
+                  style={{
+                    background: 'transparent',
+                    color: prot ? 'var(--c-success)' : 'var(--c-danger)',
+                    border: 'none',
+                  }}
+                >
+                  {prot ? <ShieldCheck size={12} /> : <Prohibit size={12} />}
+                  {prot ? '保护中' : '已暂停'}
+                </button>
+              )
+            })() : <span className="text-[10px] font-medium uppercase tracking-wider" style={{ color: 'var(--c-text-secondary)' }}>保护...</span>}
+          </div>
           {/* Clear cache */}
           <button
             onClick={() => adguard.clearCache()}
@@ -371,7 +373,10 @@ export function Dashboard() {
       {/* Latency Chart */}
       <CollapseSection title="域名延时分布" storageKey="collapse_latency">
         <div className="mb-6 fade-in-content">
-          <Suspense fallback={<div className="glass-card rounded-xl py-12" />}>
+          <Suspense fallback={<div className="glass-card rounded-xl p-4 sm:p-6">
+            <div className="mb-4 h-4 w-32 rounded" style={{ background: 'var(--c-border)' }} />
+            <div className="h-48 sm:h-52" style={{ background: 'var(--c-accent-soft)' }} />
+          </div>}>
             <LatencyChart domains={domains} mode="uncached" />
           </Suspense>
         </div>
