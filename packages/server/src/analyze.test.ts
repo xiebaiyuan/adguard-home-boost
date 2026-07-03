@@ -275,4 +275,50 @@ describe('analyze', () => {
     expect(stats.topClients[1]).toMatchObject({ ip: '192.168.1.50', name: 'iphone', count: 2 })
     expect(stats.topClients[2]).toMatchObject({ ip: '192.168.1.200', name: undefined, count: 1 })
   })
+
+  it('returns DomainStats with all required fields', () => {
+    const entries = [q('example.com', 42)]
+    const stats = analyze(entries)[0]
+
+    expect(stats).toHaveProperty('domain')
+    expect(stats).toHaveProperty('totalCount')
+    expect(stats).toHaveProperty('cachedCount')
+    expect(stats).toHaveProperty('cacheHitRate')
+    expect(stats).toHaveProperty('queryTypes')
+    expect(stats).toHaveProperty('uncached')
+    expect(stats).toHaveProperty('all')
+    expect(stats).toHaveProperty('topClients')
+    expect(stats).toHaveProperty('blockedCount')
+    expect(stats).toHaveProperty('blockedRate')
+    expect(stats).toHaveProperty('topBlockRules')
+    expect(stats.uncached).toHaveProperty('count')
+    expect(stats.uncached).toHaveProperty('min')
+    expect(stats.uncached).toHaveProperty('max')
+    expect(stats.uncached).toHaveProperty('avg')
+    expect(stats.uncached).toHaveProperty('p20')
+    expect(stats.uncached).toHaveProperty('p50')
+    expect(stats.uncached).toHaveProperty('p60')
+    expect(stats.uncached).toHaveProperty('p70')
+    expect(stats.uncached).toHaveProperty('p80')
+    expect(stats.uncached).toHaveProperty('p95')
+    expect(stats.uncached).toHaveProperty('p99')
+    expect(stats.uncached).toHaveProperty('slowRate')
+    expect(stats.uncached).toHaveProperty('severeRate')
+  })
+
+  it('handles multiple clients querying the same domain', () => {
+    const entries = [
+      { ...q('example.com', 10), client: '192.168.1.10', clientName: 'pc' },
+      { ...q('example.com', 20), client: '192.168.1.20', clientName: 'phone' },
+      { ...q('example.com', 30), client: '192.168.1.10', clientName: 'pc' },
+      { ...q('example.com', 40), client: '192.168.1.30', clientName: 'ipad' },
+    ]
+
+    const stats = analyze(entries)[0]
+    expect(stats.topClients).toHaveLength(3)
+    expect(stats.topClients[0]).toMatchObject({ ip: '192.168.1.10', name: 'pc', count: 2 })
+    expect(stats.topClients[1]).toMatchObject({ ip: '192.168.1.20', name: 'phone', count: 1 })
+    expect(stats.topClients[2]).toMatchObject({ ip: '192.168.1.30', name: 'ipad', count: 1 })
+    expect(stats.totalCount).toBe(4)
+  })
 })

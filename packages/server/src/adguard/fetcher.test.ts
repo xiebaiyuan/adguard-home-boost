@@ -61,7 +61,7 @@ afterAll(() => {
 })
 
 describe('refreshFromAdguard', () => {
-  it('fetches data, analyzes it, and returns the results', async () => {
+  it('returns domainStats with topClients and blocked fields', async () => {
     const result = await refreshFromAdguard({
       baseUrl: `http://localhost:${port}`,
       username: 'admin',
@@ -82,5 +82,17 @@ describe('refreshFromAdguard', () => {
     // Verify raw entries grouped by domain
     expect(result.rawEntriesByDomain.size).toBe(3)
     expect(result.rawEntriesByDomain.get('example.com')?.length).toBe(10)
+
+    // Verify new fields exist on domain stats
+    for (const stats of result.domainStats) {
+      expect(stats).toHaveProperty('topClients')
+      expect(stats).toHaveProperty('blockedCount')
+      expect(stats).toHaveProperty('blockedRate')
+      expect(stats).toHaveProperty('topBlockRules')
+      expect(Array.isArray(stats.topClients)).toBe(true)
+      expect(Array.isArray(stats.topBlockRules)).toBe(true)
+      expect(typeof stats.blockedCount).toBe('number')
+      expect(typeof stats.blockedRate).toBe('number')
+    }
   })
 })

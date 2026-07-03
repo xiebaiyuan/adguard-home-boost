@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts'
 
 /** 裁剪前导全零条目，使图表从第一个有数据的日期开始 */
-function trimLeadingZeros(data: Array<{ queries: number; blocked: number }>): Array<{ queries: number; blocked: number }> {
+export function trimLeadingZeros(data: Array<{ queries: number; blocked: number }>): Array<{ queries: number; blocked: number }> {
   const firstNonZero = data.findIndex(d => d.queries > 0 || d.blocked > 0)
   if (firstNonZero <= 0) return data
   return data.slice(firstNonZero)
