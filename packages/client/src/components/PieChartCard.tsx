@@ -1,4 +1,5 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
+import { useI18n } from '../lib/i18n'
 
 const COLORS = [
   'oklch(0.55 0.22 260 / 0.8)',
@@ -11,6 +12,7 @@ const COLORS = [
 
 /** 环图中心总数标签 */
 function CenterLabel({ total }: { total: number }) {
+  const { t } = useI18n()
   return (
     <>
       <text x="50%" y="48%" textAnchor="middle" dominantBaseline="middle"
@@ -19,7 +21,7 @@ function CenterLabel({ total }: { total: number }) {
       </text>
       <text x="50%" y="64%" textAnchor="middle" dominantBaseline="middle"
         style={{ fontSize: 9, fill: 'var(--c-text-secondary)' }}>
-        总计
+        {t('pie.total')}
       </text>
     </>
   )

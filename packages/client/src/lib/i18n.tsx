@@ -3,8 +3,8 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 export type Lang = 'zh' | 'en'
 
 const zh: Record<string, string> = {
-  'app.title': 'AdGuard Home 管理面板',
-  'app.subtitle': 'AdGuardHome',
+  'app.title': 'AdGuard Home Boost',
+  'app.subtitle': '增强面板',
 
   'header.theme.light': '切换到浅色模式',
   'header.theme.dark': '切换到深色模式',
@@ -57,6 +57,7 @@ const zh: Record<string, string> = {
   'domain.blockRules': '拦截规则',
   'domain.recentQueries': '最近查询',
   'domain.times': '次',
+  'domain.avg': '均',
 
   'table.domain': '域名',
   'table.type': '类型',
@@ -97,8 +98,8 @@ const zh: Record<string, string> = {
 }
 
 const en: Record<string, string> = {
-  'app.title': 'AdGuard Home Dashboard',
-  'app.subtitle': 'AdGuardHome',
+  'app.title': 'AdGuard Home Boost',
+  'app.subtitle': '',
 
   'header.theme.light': 'Switch to light mode',
   'header.theme.dark': 'Switch to dark mode',
@@ -151,6 +152,7 @@ const en: Record<string, string> = {
   'domain.blockRules': 'Block Rules',
   'domain.recentQueries': 'Recent Queries',
   'domain.times': 'x',
+  'domain.avg': 'avg',
 
   'table.domain': 'Domain',
   'table.type': 'Type',

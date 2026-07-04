@@ -156,7 +156,7 @@ export function StatsPanel({ onRefreshNeeded, queryTypeDistribution }: {
               <div key={u.upstream} className="flex items-center gap-2 text-xs">
                 <span className="max-w-[120px] truncate font-mono text-[11px]">{u.upstream}</span>
                 <span className="ml-auto shrink-0 tabular-nums" style={{ color: 'var(--c-text-secondary)' }}>
-                  {u.count.toLocaleString()} 次 · {fmtPreciseMs(u.avgTime * 1000)}
+                  {u.count.toLocaleString()} {t('domain.times')} · {fmtPreciseMs(u.avgTime * 1000)}
                 </span>
               </div>
             )) : <div className="h-4" />}

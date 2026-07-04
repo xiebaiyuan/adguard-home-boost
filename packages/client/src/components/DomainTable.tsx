@@ -197,7 +197,7 @@ function ExpandedDetail({ domain, topClients, topBlockRules }: { domain: string;
       <td colSpan={13} className="border-0 p-0">
         <div className="px-4 pb-3 pt-1">
           <div className="min-h-[120px] rounded-lg p-4 text-xs" style={{ background: 'var(--c-accent-soft)', border: '1px solid var(--c-border)' }}>
-            <span style={{ color: 'var(--c-text-secondary)' }}>详情加载失败</span>
+            <span style={{ color: 'var(--c-text-secondary)' }}>{t('domain.detailFail')}</span>
           </div>
         </div>
       </td>
@@ -231,7 +231,7 @@ function ExpandedDetail({ domain, topClients, topBlockRules }: { domain: string;
             {/* Export button */}
             <div className="mb-2 flex items-center justify-between">
               <span className="text-xs font-medium" style={{ color: 'var(--c-text-secondary)' }}>
-                域名详情 — {data.domain}
+                {t('domain.detail')} — {data.domain}
               </span>
               <button
                 onClick={e => {
@@ -249,13 +249,13 @@ function ExpandedDetail({ domain, topClients, topBlockRules }: { domain: string;
                 style={{ background: 'var(--c-accent)', color: '#fff' }}
               >
                 <Download size={12} />
-                导出日志
+                {t('domain.export')}
               </button>
             </div>
             {/* Resolved addresses */}
             {answers.length > 0 && (
               <>
-                <div className="mb-1.5 font-medium" style={{ color: 'var(--c-text-secondary)' }}>解析结果</div>
+                <div className="mb-1.5 font-medium" style={{ color: 'var(--c-text-secondary)' }}>{t('domain.resolveResult')}</div>
                 <div className="mb-3 flex flex-wrap gap-1.5">
                   {answers.map(([key, val]) => {
                     // Handle IPv6: split only on first colon
@@ -280,13 +280,13 @@ function ExpandedDetail({ domain, topClients, topBlockRules }: { domain: string;
             {/* Upstream breakdown */}
             {data.upstreams.length > 0 && (
               <>
-                <div className="mb-1.5 font-medium" style={{ color: 'var(--c-text-secondary)' }}>上游服务器</div>
+                <div className="mb-1.5 font-medium" style={{ color: 'var(--c-text-secondary)' }}>{t('domain.upstream')}</div>
                 <div className="mb-3 space-y-0.5">
                   {data.upstreams.map(u => (
                     <div key={u.upstream} className="flex items-center gap-3">
                       <span className="max-w-[200px] truncate font-mono text-[11px]">{u.upstream}</span>
                       <span style={{ color: 'var(--c-text-secondary)' }}>{u.count} {t('domain.times')}</span>
-                      <span style={{ color: 'var(--c-text-secondary)' }}>均 {u.avg}ms</span>
+                      <span style={{ color: 'var(--c-text-secondary)' }}>{t('domain.avg')} {u.avg}ms</span>
                     </div>
                   ))}
                 </div>
@@ -296,7 +296,7 @@ function ExpandedDetail({ domain, topClients, topBlockRules }: { domain: string;
             {/* Client sources — topClients 在 DomainStats 中已预聚合，直接展示无需等待 API */}
             {topClients.length > 0 && (
               <>
-                <div className="mb-1.5 font-medium" style={{ color: 'var(--c-text-secondary)' }}>客户端来源</div>
+                <div className="mb-1.5 font-medium" style={{ color: 'var(--c-text-secondary)' }}>{t('domain.clientSource')}</div>
                 <div className="mb-3 space-y-0.5">
                   {topClients.map(c => (
                     <div key={c.ip} className="flex items-center gap-3">
@@ -316,7 +316,7 @@ function ExpandedDetail({ domain, topClients, topBlockRules }: { domain: string;
             {/* Block rules */}
             {topBlockRules.length > 0 && (
               <>
-                <div className="mb-1.5 font-medium" style={{ color: 'var(--c-danger)' }}>拦截规则</div>
+                <div className="mb-1.5 font-medium" style={{ color: 'var(--c-danger)' }}>{t('domain.blockRules')}</div>
                 <div className="mb-3 space-y-0.5">
                   {topBlockRules.map((r, i) => (
                     <div key={i} className="flex items-center gap-3">
@@ -329,7 +329,7 @@ function ExpandedDetail({ domain, topClients, topBlockRules }: { domain: string;
             )}
 
             {/* Recent entries */}
-            <div className="mb-1.5 font-medium" style={{ color: 'var(--c-text-secondary)' }}>最近查询</div>
+            <div className="mb-1.5 font-medium" style={{ color: 'var(--c-text-secondary)' }}>{t('domain.recentQueries')}</div>
             <div className="max-h-32 overflow-y-auto space-y-0.5">
               {data.entries.slice(0, 20).map((e, i) => (
                 <div key={i} className="flex items-center gap-2 text-[11px]">
