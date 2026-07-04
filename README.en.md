@@ -118,7 +118,7 @@ All data comes from [AdGuard Home](https://github.com/AdguardTeam/AdGuardHome) �
 
 ## Friends
 
-[Linux.Do](https://linux.do/) — A vibrant Linux & open-source community. Everyone is welcome!
+[Linux.Do](https://linux.do/) — A vibrant open-source community with a strong technical atmosphere. Everyone is welcome!
 
 ## License
 

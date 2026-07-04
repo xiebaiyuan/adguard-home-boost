@@ -112,7 +112,7 @@ docker run -d --name adguard-dns-latency \
 
 ## 友情链接
 
-[Linux.Do](https://linux.do/) — 优秀的 Linux 与开源社区，欢迎大家加入。
+[Linux.Do](https://linux.do/) — 技术氛围浓厚的开源社区，欢迎大家加入。
 
 ## 许可证
 
