@@ -6,9 +6,10 @@ Aggregate DNS latency by domain from AdGuardHome query logs. Pinpoint slow queri
 
 ## Screenshots
 
-<img src="docs/screenshots/dashboard-overview.png" width="720">  
-<img src="docs/screenshots/domain-table.png" width="720">  
-<img src="docs/screenshots/stats-panel.png" width="720">
+<img src="docs/screenshots/1.png" width="720">  
+<img src="docs/screenshots/4.png" width="720">  
+<img src="docs/screenshots/3.png" width="720">  
+<img src="docs/screenshots/2.png" width="720">
 
 ## Quick Start
 
