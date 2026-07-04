@@ -1,8 +1,8 @@
 {
   "name": "@adgh/dashboard",
   "private": true,
-  "version": "0.1.0",
-  "description": "AdGuardHome DNS 延时分析前端仪表盘",
+  "version": "1.10.0",
+  "description": "AdGuard Home Boost - 增强型管理面板",
   "type": "module",
   "scripts": {
     "dev": "vite",

@@ -30,7 +30,21 @@ npm run lint -w @adgh/dashboard
 # Docker
 docker build -t xiebaiyuan/adguard-home-boost:latest .
 docker compose up -d
+
+# Release — version + tag + push
+npm version <patch|minor|major> -w @adgh/dashboard
+git add packages/client/package.json
+npm run release   # reads version from packages/client/package.json, tags and pushes
 ```
+
+## Version Constraint
+
+**`__APP_VERSION__` 必须与 git tag 保持一致。**
+
+- `packages/client/package.json` 的 `version` 字段是唯一版本来源，构建时通过 Vite `define` 注入为 `__APP_VERSION__`
+- 发版流程：`npm version <patch|minor|major> -w @adgh/dashboard` → `git add packages/client/package.json` → `git commit` → `npm run release`（自动读取 version 打 tag 并推送）
+- 禁止手动 `git tag` 不打版本号，或打了 tag 不更新 package.json
+- 当前版本：`1.10.0`
 
 ## Workflow
 
