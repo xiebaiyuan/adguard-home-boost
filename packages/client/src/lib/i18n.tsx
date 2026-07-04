@@ -4,7 +4,7 @@ export type Lang = 'zh' | 'en'
 
 const zh: Record<string, string> = {
   'app.title': 'AdGuard Home Boost',
-  'app.subtitle': '增强面板',
+  'app.subtitle': '',
 
   'header.theme.light': '切换到浅色模式',
   'header.theme.dark': '切换到深色模式',

@@ -20,11 +20,9 @@ export function Header() {
             <span className="text-sm font-semibold gradient-text">
               {t('app.title')}
             </span>
-            {t('app.subtitle') && (
-              <span className="ml-2 text-xs" style={{ color: 'var(--c-text-secondary)' }}>
-                {t('app.subtitle')}
-              </span>
-            )}
+            <span className="ml-2 text-xs font-mono" style={{ color: 'var(--c-text-secondary)' }}>
+              {__APP_VERSION__}
+            </span>
           </div>
         </div>
 
