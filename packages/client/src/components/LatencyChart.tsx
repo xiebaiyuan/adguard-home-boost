@@ -50,7 +50,7 @@ export function LatencyChart({ domains }: LatencyChartProps) {
   if (!domains.length) {
     return (
       <div className="glass-card flex items-center justify-center rounded-xl py-12">
-        <span className="text-sm" style={{ color: 'var(--c-text-secondary)' }}>暂无数据</span>
+        <span className="text-sm" style={{ color: 'var(--c-text-secondary)' }}>{t('chart.empty')}</span>
       </div>
     )
   }
@@ -63,7 +63,7 @@ export function LatencyChart({ domains }: LatencyChartProps) {
       <div className="glass-card rounded-lg px-3 py-2 text-xs shadow-lg">
         <div className="mb-0.5 font-medium" style={{ color: 'var(--c-text)' }}>{label}</div>
         <div style={{ color: 'var(--c-text-secondary)' }}>
-          {count.toLocaleString()} 个域名 · 占比 {pct}%
+          {count.toLocaleString()} {t('chart.domainUnit')} · {t('chart.ratio')} {pct}%
         </div>
       </div>
     )

@@ -71,6 +71,14 @@ const zh: Record<string, string> = {
   'table.slowQuery': '慢查询',
   'table.max': 'MAX',
 
+  'chart.tooltip.queries': '查询',
+  'chart.tooltip.blocked': '屏蔽',
+  'chart.tooltip.blockRate': '屏蔽率',
+  'chart.tooltip.sma3': '3日均线',
+  'chart.empty': '暂无数据',
+  'chart.domainUnit': '个域名',
+  'chart.ratio': '占比',
+
   'pie.total': '总计',
 
   'trend.by': '按 P95 延时区间',
@@ -156,6 +164,14 @@ const en: Record<string, string> = {
   'table.p99': 'P99',
   'table.slowQuery': 'Slow',
   'table.max': 'MAX',
+
+  'chart.tooltip.queries': 'Queries',
+  'chart.tooltip.blocked': 'Blocked',
+  'chart.tooltip.blockRate': 'Block Rate',
+  'chart.tooltip.sma3': '3-day SMA',
+  'chart.empty': 'No data',
+  'chart.domainUnit': 'domains',
+  'chart.ratio': 'ratio',
 
   'pie.total': 'Total',
 

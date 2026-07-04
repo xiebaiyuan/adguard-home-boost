@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts'
+import { useI18n } from '../lib/i18n'
 
 /** 裁剪前导全零条目，使图表从第一个有数据的日期开始 */
 export function trimLeadingZeros(data: Array<{ queries: number; blocked: number }>): Array<{ queries: number; blocked: number }> {
@@ -34,6 +35,7 @@ function sma(values: number[], window: number): (number | null)[] {
 
 /** 自定义 Tooltip：显示查询、屏蔽、屏蔽率、均线 */
 function ChartTooltip({ active, payload, label }: any) {
+  const { t } = useI18n()
   if (!active || !payload?.length) return null
   const queries = payload.find((p: any) => p.dataKey === 'queries')?.value ?? 0
   const blocked = payload.find((p: any) => p.dataKey === 'blocked')?.value ?? 0
@@ -46,22 +48,22 @@ function ChartTooltip({ active, payload, label }: any) {
       <div className="space-y-0.5">
         <div className="flex items-center gap-2">
           <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: 'var(--c-accent)' }} />
-          <span style={{ color: 'var(--c-text-secondary)' }}>查询</span>
+          <span style={{ color: 'var(--c-text-secondary)' }}>{t('chart.tooltip.queries')}</span>
           <span className="ml-auto tabular-nums font-medium" style={{ color: 'var(--c-text)' }}>{queries.toLocaleString()}</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: 'var(--c-danger)' }} />
-          <span style={{ color: 'var(--c-text-secondary)' }}>屏蔽</span>
+          <span style={{ color: 'var(--c-text-secondary)' }}>{t('chart.tooltip.blocked')}</span>
           <span className="ml-auto tabular-nums font-medium" style={{ color: 'var(--c-danger)' }}>{blocked.toLocaleString()}</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: 'var(--c-success)' }} />
-          <span style={{ color: 'var(--c-text-secondary)' }}>屏蔽率</span>
+          <span style={{ color: 'var(--c-text-secondary)' }}>{t('chart.tooltip.blockRate')}</span>
           <span className="ml-auto tabular-nums font-medium" style={{ color: 'var(--c-text)' }}>{rate}%</span>
         </div>
         {smaVal != null && (
           <div className="pt-0.5 text-[10px]" style={{ borderTop: '1px solid var(--c-border)', color: 'var(--c-text-secondary)' }}>
-            3日均线 {smaVal.toLocaleString()}
+            {t('chart.tooltip.sma3')} {smaVal.toLocaleString()}
           </div>
         )}
       </div>
@@ -75,6 +77,7 @@ interface TrendChartProps {
 }
 
 export function TrendChart({ history }: TrendChartProps) {
+  const { t } = useI18n()
   const { chartData, dateRange } = useMemo(() => {
     const trimmed = trimLeadingZeros(history)
     const allLabels = computeDateLabels(history.length)
@@ -105,7 +108,7 @@ export function TrendChart({ history }: TrendChartProps) {
       {/* Header */}
       <div className="mb-3 flex items-center gap-2">
         <div className="h-3 w-1 rounded-full" style={{ background: 'var(--c-accent)' }} />
-        <h3 className="text-sm font-semibold" style={{ textWrap: 'balance' }}>查询趋势</h3>
+        <h3 className="text-sm font-semibold" style={{ textWrap: 'balance' }}>{t('section.trend')}</h3>
         {dateRange && (
           <span className="text-xs" style={{ color: 'var(--c-text-secondary)' }}>{dateRange}</span>
         )}
