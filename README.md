@@ -1,6 +1,6 @@
 # AdGuard Home 管理面板
 
-<a href="README.en.md"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -3px; margin-right: 2px;"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg> English</a> · [![Release](https://img.shields.io/github/v/release/xiebaiyuan/adguard-dns-latency)](https://github.com/xiebaiyuan/adguard-dns-latency/releases) ![License](https://img.shields.io/badge/License-MIT-yellow.svg) ![Node](https://img.shields.io/badge/node-%3E%3D18-brightgreen)
+<a href="README.en.md"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -3px; margin-right: 2px;"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg> English</a> · [![Release](https://img.shields.io/github/v/release/xiebaiyuan/adguard-home-boost)](https://github.com/xiebaiyuan/adguard-home-boost/releases) ![License](https://img.shields.io/badge/License-MIT-yellow.svg) ![Node](https://img.shields.io/badge/node-%3E%3D18-brightgreen)
 
 AdGuardHome 增强型管理面板。聚合查询日志分析延时、实时统计、DNS 管理。
 
@@ -14,8 +14,8 @@ AdGuardHome 增强型管理面板。聚合查询日志分析延时、实时统�
 ## 快速开始
 
 ```bash
-git clone https://github.com/xiebaiyuan/adguard-dns-latency.git
-cd adguard-dns-latency
+git clone https://github.com/xiebaiyuan/adguard-home-boost.git
+cd adguard-home-boost
 npm install
 npm run dev
 # 后端 http://localhost:3080
@@ -27,13 +27,13 @@ npm run dev
 也可用 Docker：
 
 ```bash
-docker run -d --name adguard-dns-latency \
+docker run -d --name adguard-home-boost \
   -p 3080:3080 \
   -e ADGH_URL=http://192.168.8.88 \
   -e ADGH_USER=your_username \
   -e ADGH_PASSWD=your_password \
   -e ADGH_SKIP_VERIFY=true \
-  xiebaiyuan/adguard-dns-latency:latest
+  xiebaiyuan/adguard-home-boost:latest
 ```
 
 ## 功能

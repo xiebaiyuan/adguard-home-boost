@@ -1,5 +1,5 @@
 {
-  "name": "adguardhome-dns-latency",
+  "name": "adguard-home-boost",
   "private": true,
   "workspaces": [
     "packages/*",

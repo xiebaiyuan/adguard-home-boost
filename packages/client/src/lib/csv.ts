@@ -48,7 +48,7 @@ export function exportCsv(domains: DomainStats[]) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `adguard-dns-latency-${new Date().toISOString().slice(0, 10)}.csv`
+  a.download = `adguard-home-boost-${new Date().toISOString().slice(0, 10)}.csv`
   a.click()
   URL.revokeObjectURL(url)
 }

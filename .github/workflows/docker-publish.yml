@@ -8,7 +8,7 @@ on:
 
 env:
   REGISTRY: docker.io
-  IMAGE_NAME: xiebaiyuan/adguard-dns-latency
+  IMAGE_NAME: xiebaiyuan/adguard-home-boost
 
 jobs:
   build-and-push:

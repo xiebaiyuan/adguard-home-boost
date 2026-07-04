@@ -28,7 +28,7 @@ npm run build
 npm run lint -w @adgh/dashboard
 
 # Docker
-docker build -t xiebaiyuan/adguard-dns-latency:latest .
+docker build -t xiebaiyuan/adguard-home-boost:latest .
 docker compose up -d
 ```
 

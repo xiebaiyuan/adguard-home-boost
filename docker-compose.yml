@@ -1,7 +1,7 @@
 services:
-  adguard-dns-latency:
-    container_name: adguard-dns-latency
-    image: xiebaiyuan/adguard-dns-latency:latest
+  adguard-home-boost:
+    container_name: adguard-home-boost
+    image: xiebaiyuan/adguard-home-boost:latest
     restart: unless-stopped
 
     ports:
