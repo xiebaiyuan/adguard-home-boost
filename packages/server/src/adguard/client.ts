@@ -41,6 +41,12 @@ interface ApiLogEntry {
 const PAGE_SIZE = 500
 const MAX_ENTRIES = 100_000
 
+/** C5: [DEBUG] 日志门控，ADGH_DEBUG 未设或为 0/false 时不输出 */
+function isDebugEnabled(): boolean {
+  const flag = process.env.ADGH_DEBUG
+  return flag !== undefined && flag !== '' && flag !== '0' && flag.toLowerCase() !== 'false'
+}
+
 /**
  * Fetch query log entries from AdGuardHome using cursor-based pagination.
  * Uses the response `oldest` field as the `older_than` parameter for the next page,
@@ -49,6 +55,9 @@ const MAX_ENTRIES = 100_000
 export async function fetchQueryLog(config: AdguardConfig): Promise<RawFetchedEntry[]> {
   const baseUrl = config.baseUrl.replace(/\/$/, '')
   const auth = Buffer.from(`${config.username}:${config.password}`).toString('base64')
+  const debugLog = (...args: unknown[]) => {
+    if (isDebugEnabled()) console.log(...args)
+  }
 
   const allEntries: RawFetchedEntry[] = []
   let olderThan: string | undefined
@@ -82,21 +91,21 @@ export async function fetchQueryLog(config: AdguardConfig): Promise<RawFetchedEn
     pages++
 
     if (data.length === 0) {
-      console.log(`[DEBUG] pagination done: empty page after ${allEntries.length} entries (${pages} pages)`)
+      debugLog(`[DEBUG] pagination done: empty page after ${allEntries.length} entries (${pages} pages)`)
       break
     }
 
     // Debug first page
     if (pages === 1) {
-      console.log(`[DEBUG] first page: ${data.length} entries, oldest=${oldest}, cutoff=${cutoff.toISOString()}`)
+      debugLog(`[DEBUG] first page: ${data.length} entries, oldest=${oldest}, cutoff=${cutoff.toISOString()}`)
       if (data.length > 0) {
-        console.log('[DEBUG] sample cached field:', JSON.stringify(data.slice(0, 3).map((e: any) => ({
+        debugLog('[DEBUG] sample cached field:', JSON.stringify(data.slice(0, 3).map((e: any) => ({
           domain: e.question?.name,
           cached: e.cached,
           cachedType: typeof e.cached,
         }))))
       }
-      console.log('[DEBUG] first entry time:', data[0].time, 'last entry time:', data[data.length - 1].time)
+      debugLog('[DEBUG] first entry time:', data[0].time, 'last entry time:', data[data.length - 1].time)
     }
 
     for (const entry of data) {
@@ -123,7 +132,7 @@ export async function fetchQueryLog(config: AdguardConfig): Promise<RawFetchedEn
 
     // Safety cap
     if (allEntries.length >= MAX_ENTRIES) {
-      console.log(`[DEBUG] pagination stopped: reached max ${MAX_ENTRIES} entries`)
+      debugLog(`[DEBUG] pagination stopped: reached max ${MAX_ENTRIES} entries`)
       break
     }
 
@@ -136,11 +145,11 @@ export async function fetchQueryLog(config: AdguardConfig): Promise<RawFetchedEn
       }
       olderThan = oldest
     } else {
-      console.log('[DEBUG] pagination stopped: no oldest field in response')
+      debugLog('[DEBUG] pagination stopped: no oldest field in response')
       break
     }
   }
 
-  console.log(`[DEBUG] fetch complete: ${allEntries.length} entries in ${pages} pages`)
+  debugLog(`[DEBUG] fetch complete: ${allEntries.length} entries in ${pages} pages`)
   return allEntries
 }

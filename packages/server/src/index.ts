@@ -8,7 +8,19 @@ import { buildApp } from './app.js'
 import type { AdguardConfig } from './adguard/client.js'
 
 const PORT = parseInt(process.env.PORT ?? '3080', 10)
-const HOST = process.env.HOST ?? '0.0.0.0'
+const HOST = process.env.HOST
+const AUTH_USER = process.env.ADGH_AUTH_USER
+const AUTH_PASSWD = process.env.ADGH_AUTH_PASSWD
+const authEnabled = Boolean(AUTH_USER && AUTH_PASSWD)
+
+const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '::1'])
+
+/** C2: HOST 不设时无条件默认回环；未配凭据时显式非回环 fail-closed（返回 null 即启动退出） */
+function resolveHost(): string | null {
+  if (!HOST) return '127.0.0.1'
+  if (authEnabled) return HOST
+  return LOOPBACK_HOSTS.has(HOST) ? HOST : null
+}
 
 function loadAdguardConfig(): AdguardConfig | null {
   const url = process.env.ADGH_URL
@@ -37,13 +49,25 @@ function loadAdguardConfig(): AdguardConfig | null {
 }
 
 async function start() {
+  const host = resolveHost()
+  if (host === null) {
+    console.error(`❌ 未配置 ADGH_AUTH_USER / ADGH_AUTH_PASSWD 时，HOST 只能绑回环地址 (127.0.0.1 / localhost / ::1)，当前 HOST=${HOST}`)
+    console.error('   要么把 HOST 改成 127.0.0.1，要么配置准入凭据 ADGH_AUTH_USER / ADGH_AUTH_PASSWD 后再对外监听。')
+    process.exitCode = 1
+    return
+  }
+
   const adguardConfig = loadAdguardConfig()
   const app = buildApp({ adguardConfig })
 
   try {
-    await app.listen({ port: PORT, host: HOST })
+    await app.listen({ port: PORT, host })
     console.log(`🚀 后端服务已启动: http://localhost:${PORT}`)
     console.log(`📡 API 健康检查: http://localhost:${PORT}/api/health`)
+
+    if (authEnabled) {
+      console.log('🔒 auth enabled (HTTP Basic)')
+    }
 
     if (adguardConfig) {
       console.log(`🔗 AdGuardHome 已配置: ${adguardConfig.baseUrl}`)

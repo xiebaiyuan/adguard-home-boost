@@ -2,6 +2,7 @@ import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import fastifyStatic from '@fastify/static'
 import { resolve } from 'path'
+import { timingSafeEqual } from 'node:crypto'
 import type { FastifyInstance } from 'fastify'
 import type { AnalysisResult } from 'shared'
 import type { AdguardConfig, RawFetchedEntry } from './adguard/client.js'
@@ -21,6 +22,35 @@ interface CacheState {
 export interface AppOptions {
   cacheSeed?: Map<string, RawFetchedEntry[]>
   adguardConfig?: AdguardConfig | null
+}
+
+/** C1: 恒定时间字符串比较。先补齐到同长度再比，长度不等直接判否 */
+function safeEqual(a: string, b: string): boolean {
+  const bufA = Buffer.from(a, 'utf8')
+  const bufB = Buffer.from(b, 'utf8')
+  const len = Math.max(bufA.length, bufB.length, 1)
+  const paddedA = Buffer.alloc(len)
+  const paddedB = Buffer.alloc(len)
+  bufA.copy(paddedA)
+  bufB.copy(paddedB)
+  return timingSafeEqual(paddedA, paddedB) && bufA.length === bufB.length
+}
+
+/** C1: 解析 Authorization: Basic，失败返回 null */
+function parseBasicAuth(header: string | undefined): { user: string; pass: string } | null {
+  if (!header) return null
+  const match = /^Basic\s+(\S+)$/i.exec(header.trim())
+  if (!match) return null
+  const decoded = Buffer.from(match[1], 'base64').toString('utf8')
+  const sep = decoded.indexOf(':')
+  if (sep < 0) return null
+  return { user: decoded.slice(0, sep), pass: decoded.slice(sep + 1) }
+}
+
+/** C3: 取原请求的原始 query 串，转发给 AdGuardHome 时带上 */
+function requestQuery(request: { url: string }): string {
+  const idx = request.url.indexOf('?')
+  return idx < 0 ? '' : request.url.slice(idx + 1)
 }
 
 export function buildApp(opts?: AppOptions): FastifyInstance {
@@ -46,6 +76,23 @@ export function buildApp(opts?: AppOptions): FastifyInstance {
   }
 
   const app = Fastify({ logger: false })
+
+  // C1: HTTP Basic 准入鉴权。两个 env 都非空才启用；在此之前注册，覆盖其后所有路由（含静态资源）
+  const authUser = process.env.ADGH_AUTH_USER
+  const authPass = process.env.ADGH_AUTH_PASSWD
+
+  if (authUser && authPass) {
+    app.addHook('onRequest', async (request, reply) => {
+      const supplied = parseBasicAuth(request.headers.authorization)
+      const userOk = safeEqual(supplied?.user ?? '', authUser)
+      const passOk = safeEqual(supplied?.pass ?? '', authPass)
+      if (!(userOk && passOk)) {
+        reply.header('WWW-Authenticate', 'Basic realm="adguard-home-boost"')
+        reply.status(401)
+        return reply.send({ error: 'unauthorized' })
+      }
+    })
+  }
 
   app.register(cors, {
     origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
@@ -261,38 +308,91 @@ export function buildApp(opts?: AppOptions): FastifyInstance {
     }
   })
 
-  // Debug: check raw cached field in first few entries
-  app.get('/api/debug/cache-check', async () => {
-    const samples: Array<{ domain: string; cached: boolean; cachedType: string; elapsedMs: number }> = []
-    for (const [domain, entries] of cache.rawEntriesByDomain) {
-      for (let i = 0; i < Math.min(3, entries.length); i++) {
-        samples.push({
-          domain,
-          cached: entries[i].cached,
-          cachedType: typeof entries[i].cached,
-          elapsedMs: entries[i].elapsedMs,
-        })
+  // Debug: check raw cached field in first few entries（C5: 仅非生产环境注册）
+  if (process.env.NODE_ENV !== 'production') {
+    app.get('/api/debug/cache-check', async () => {
+      const samples: Array<{ domain: string; cached: boolean; cachedType: string; elapsedMs: number }> = []
+      for (const [domain, entries] of cache.rawEntriesByDomain) {
+        for (let i = 0; i < Math.min(3, entries.length); i++) {
+          samples.push({
+            domain,
+            cached: entries[i].cached,
+            cachedType: typeof entries[i].cached,
+            elapsedMs: entries[i].elapsedMs,
+          })
+        }
+        if (samples.length >= 20) break
       }
-      if (samples.length >= 20) break
-    }
-    return {
-      totalDomains: cache.rawEntriesByDomain.size,
-      totalEntries: Array.from(cache.rawEntriesByDomain.values()).reduce((s, e) => s + e.length, 0),
-      sampleCount: samples.length,
-      samples,
-    }
-  })
+      return {
+        totalDomains: cache.rawEntriesByDomain.size,
+        totalEntries: Array.from(cache.rawEntriesByDomain.values()).reduce((s, e) => s + e.length, 0),
+        sampleCount: samples.length,
+        samples,
+      }
+    })
+  }
 
   // Configure AdGuardHome connection
-  app.post<{ Body: { adguardConfig: AdguardConfig } }>('/api/config', async (request, reply) => {
-    const newConfig = request.body.adguardConfig
+  app.post<{ Body: { adguardConfig?: Record<string, unknown> } }>('/api/config', async (request, reply) => {
+    const raw = request.body?.adguardConfig
 
-    // Normalize URL: add http:// if no protocol specified
-    let url = newConfig.baseUrl
-    if (!/^https?:\/\//i.test(url)) {
+    // C4: 最小 body 校验，缺字段或类型不对返回 400
+    if (!raw || typeof raw !== 'object') {
+      reply.status(400)
+      return { error: 'adguardConfig is required' }
+    }
+    const baseUrlRaw = raw.baseUrl
+    if (typeof baseUrlRaw !== 'string' || baseUrlRaw.trim() === '') {
+      reply.status(400)
+      return { error: 'baseUrl must be a non-empty string' }
+    }
+    if (typeof raw.username !== 'string') {
+      reply.status(400)
+      return { error: 'username must be a string' }
+    }
+    if (typeof raw.password !== 'string') {
+      reply.status(400)
+      return { error: 'password must be a string' }
+    }
+    if (raw.rejectUnauthorized !== undefined && typeof raw.rejectUnauthorized !== 'boolean') {
+      reply.status(400)
+      return { error: 'rejectUnauthorized must be a boolean' }
+    }
+    if (raw.timeRangeHours !== undefined && (typeof raw.timeRangeHours !== 'number' || !Number.isFinite(raw.timeRangeHours))) {
+      reply.status(400)
+      return { error: 'timeRangeHours must be a number' }
+    }
+
+    // Normalize URL: add http:// if no protocol specified（显式 scheme 一律保留，交给下面的协议白名单判）
+    let url = baseUrlRaw
+    if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(url)) {
       url = `http://${url}`
     }
-    newConfig.baseUrl = url
+
+    // C4: new URL 解析 + 协议白名单 + 禁 userinfo
+    let parsed: URL
+    try {
+      parsed = new URL(url)
+    } catch {
+      reply.status(400)
+      return { error: `baseUrl is not a valid URL: ${baseUrlRaw}` }
+    }
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      reply.status(400)
+      return { error: `baseUrl only supports http/https: ${parsed.protocol}` }
+    }
+    if (parsed.username || parsed.password) {
+      reply.status(400)
+      return { error: 'baseUrl must not contain userinfo; use username/password fields' }
+    }
+
+    const newConfig: AdguardConfig = {
+      baseUrl: url,
+      username: raw.username,
+      password: raw.password,
+      rejectUnauthorized: raw.rejectUnauthorized === true,
+      timeRangeHours: raw.timeRangeHours as number | undefined,
+    }
 
     // 切换后端时清除旧缓存
     if (adguardConfig?.baseUrl !== newConfig.baseUrl) {
@@ -362,7 +462,7 @@ export function buildApp(opts?: AppOptions): FastifyInstance {
     const blocked = adguardGuard(reply)
     if (blocked) return blocked
     const targetPath = '/' + (request.params as any)['*']
-    const result = await proxyAdguard(adguardConfig!, 'GET', targetPath)
+    const result = await proxyAdguard(adguardConfig!, 'GET', targetPath, undefined, requestQuery(request))
     reply.status(result.status)
     return result.data
   })
@@ -371,7 +471,7 @@ export function buildApp(opts?: AppOptions): FastifyInstance {
     const blocked = adguardGuard(reply)
     if (blocked) return blocked
     const targetPath = '/' + (request.params as any)['*']
-    const result = await proxyAdguard(adguardConfig!, 'POST', targetPath, request.body)
+    const result = await proxyAdguard(adguardConfig!, 'POST', targetPath, request.body, requestQuery(request))
     reply.status(result.status)
     return result.data
   })

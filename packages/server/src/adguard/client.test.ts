@@ -1,5 +1,5 @@
 import { createServer } from 'http'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { fetchQueryLog } from './client.js'
 import type { Server } from 'http'
 
@@ -115,5 +115,29 @@ describe('fetchQueryLog', () => {
         password: 'bad',
       })
     ).rejects.toThrow(/401|unauthorized/i)
+  })
+})
+
+describe('ADGH_DEBUG 门控 [DEBUG] 日志', () => {
+  afterEach(() => {
+    delete process.env.ADGH_DEBUG
+    vi.restoreAllMocks()
+  })
+
+  const debugLines = (spy: { mock: { calls: unknown[][] } }) =>
+    spy.mock.calls.filter(args => String(args[0]).includes('[DEBUG]'))
+
+  it('ADGH_DEBUG 未设时一条 [DEBUG] 都不打', async () => {
+    delete process.env.ADGH_DEBUG
+    const spy = vi.spyOn(console, 'log').mockImplementation(() => {})
+    await fetchQueryLog(config())
+    expect(debugLines(spy as any)).toHaveLength(0)
+  })
+
+  it('ADGH_DEBUG=1 时打出 [DEBUG]', async () => {
+    process.env.ADGH_DEBUG = '1'
+    const spy = vi.spyOn(console, 'log').mockImplementation(() => {})
+    await fetchQueryLog(config())
+    expect(debugLines(spy as any).length).toBeGreaterThan(0)
   })
 })
