@@ -1,5 +1,8 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+// 字体走 JS import：Vite 会把 @font-face 里的 url(./files/*.woff2) 解析成产物资源
+import '@fontsource-variable/outfit/index.css'
+import '@fontsource-variable/jetbrains-mono/index.css'
 import './index.css'
 import App from './App.tsx'
 

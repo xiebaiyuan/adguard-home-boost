@@ -1,6 +1,5 @@
-/* ── 字体 ── */
-@import '@fontsource-variable/outfit';
-@import '@fontsource-variable/jetbrains-mono';
+/* 字体在 src/main.tsx 里 import：CSS 的 @import 展开后 url(./files/*.woff2)
+   不会被解析成产物资源，Vite 8 会把它们原样留在 CSS 里，线上 404。 */
 
 /* ── Tailwind v4 ── */
 @import "tailwindcss";

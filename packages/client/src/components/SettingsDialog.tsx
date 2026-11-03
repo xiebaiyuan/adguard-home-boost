@@ -206,7 +206,7 @@ export function SettingsDialog({ open, onClose, onConfigured }: SettingsDialogPr
             <input
               value={url}
               onChange={e => setUrl(e.target.value)}
-              placeholder="http://192.168.8.88"
+              placeholder="http://192.168.1.100"
               className="w-full rounded-lg border px-3 py-2 text-sm outline-none transition-colors"
               style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)', color: 'var(--c-text)' }}
             />
