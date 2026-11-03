@@ -8,3 +8,8 @@ coverage/
 .DS_Store
 .idea/
 .codegraph/
+
+# 指向本机 Obsidian 库的软链，不进版本库（见 CLAUDE.md 的 Agent skills 段）
+# 不带尾斜杠：git 把软链当文件，`名称/` 这种只匹配目录的写法忽略不掉它
+.scratch
+obsidian-docs
