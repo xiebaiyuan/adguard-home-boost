@@ -6,9 +6,12 @@ import { timingSafeEqual } from 'node:crypto'
 import type { FastifyInstance } from 'fastify'
 import type { AnalysisResult } from 'shared'
 import type { AdguardConfig, RawFetchedEntry } from './adguard/client.js'
+import type { LatencyDistribution } from './adguard/fetcher.js'
 import { refreshFromAdguard } from './adguard/fetcher.js'
 import { fetchStats } from './adguard/stats.js'
 import { proxyAdguard } from './adguard/proxy.js'
+import { describeFetchError } from './adguard/errors.js'
+import { computeLatencyStats } from './analyze.js'
 
 interface CacheState {
   ready: boolean
@@ -17,6 +20,22 @@ interface CacheState {
   lastUpdated: string | null
   lastError: string | null
   rawEntriesByDomain: Map<string, RawFetchedEntry[]>
+  /** C7: 全量延时分布，dashboard 的全局百分位从它算 */
+  latencies: LatencyDistribution | null
+}
+
+/**
+ * C10: 配置签名，只收影响数据内容的字段。
+ * rejectUnauthorized 故意排除：它只决定 TLS 证书校不校，不影响抓回来的数据；
+ * 而前端每次加载都会 POST 一次 rejectUnauthorized: false，算进签名会让每次刷页面都清缓存。
+ * R2: baseUrl 在签名内部去掉尾斜杠——client.ts 取数据时也会 strip，两种写法语义相同，
+ *     不清这一步会让 `http://h:p/` 与 `http://h:p` 误判成两份配置而清缓存。
+ *     存储与回显用的仍是原始值，adguardUrl 的展示不变。
+ */
+function configKey(c: AdguardConfig | null): string {
+  if (!c) return ''
+  const baseUrl = c.baseUrl.replace(/\/$/, '')
+  return JSON.stringify([baseUrl, c.username, c.password, c.timeRangeHours ?? 24])
 }
 
 export interface AppOptions {
@@ -56,6 +75,8 @@ function requestQuery(request: { url: string }): string {
 export function buildApp(opts?: AppOptions): FastifyInstance {
   let adguardConfig = opts?.adguardConfig ?? null
   let refreshInProgress = false
+  // C9: 配置版本号，配置真的变了才递增；刷新落地前比对自己捕获的那份
+  let configVersion = 0
 
   const cache: CacheState = {
     ready: false,
@@ -64,10 +85,11 @@ export function buildApp(opts?: AppOptions): FastifyInstance {
     lastUpdated: null,
     lastError: null,
     rawEntriesByDomain: opts?.cacheSeed ?? new Map(),
+    latencies: null,
   }
 
-  // Stats cache (实时统计) — 30s TTL
-  let statsCache: { data: any; expiresAt: number } | null = null
+  // Stats cache (实时统计) — 30s TTL，带配置签名，配置变了立刻失效
+  let statsCache: { data: any; expiresAt: number; key: string } | null = null
   const STATS_TTL = 30_000
 
   // If cacheSeed is provided, treat as pre-loaded data
@@ -123,16 +145,17 @@ export function buildApp(opts?: AppOptions): FastifyInstance {
       reply.status(400)
       return { error: 'AdGuardHome not configured' }
     }
-    if (statsCache && Date.now() < statsCache.expiresAt) {
+    if (statsCache && statsCache.key === configKey(adguardConfig) && Date.now() < statsCache.expiresAt) {
       return statsCache.data
     }
     try {
       const data = await fetchStats(adguardConfig)
-      statsCache = { data, expiresAt: Date.now() + STATS_TTL }
+      statsCache = { data, expiresAt: Date.now() + STATS_TTL, key: configKey(adguardConfig) }
       return data
     } catch (err) {
       reply.status(502)
-      return { error: err instanceof Error ? err.message : String(err) }
+      // D1: 在用户可见的边界补上 fetch 失败的 cause code（stats 内部的错误对象保持原样，cause 不被剥掉）
+      return { error: describeFetchError(err) }
     }
   })
 
@@ -152,52 +175,28 @@ export function buildApp(opts?: AppOptions): FastifyInstance {
   app.get('/api/analysis/dashboard', async () => {
     const domains = cache.data ?? []
     const ready = cache.ready
+    const latencies = cache.latencies
 
-    // 预聚合统计
-    let totalCount = 0
-    let totalCached = 0
-    let accCount = 0
-    let accSum = 0
-    let accSlow = 0
-    let accSevere = 0
-    const p50s: number[] = []
-    const p95s: number[] = []
+    // C7: 全局百分位基于全量延时数组，和 per-domain 统计共用 computeLatencyStats。
+    // 分子分母同源：all 系列只用 latencies.all，uncached 系列只用 latencies.uncached。
+    const totalCount = latencies?.all.length ?? 0
+    const uncachedCount = latencies?.uncached.length ?? 0
+    const totalCached = totalCount - uncachedCount
+    const overallCacheRate = totalCount > 0 ? totalCached / totalCount : 0
+
+    const allLatency = totalCount > 0 ? computeLatencyStats(latencies!.all) : null
+    const uncachedLatency = uncachedCount > 0 ? computeLatencyStats(latencies!.uncached) : null
+
+    // queryTypes 仍按域名汇总（它本身就是分域统计）
     const queryTypeAcc: Record<string, number> = {}
-
     for (const d of domains) {
-      totalCount += d.totalCount
-      totalCached += d.cachedCount
-      const u = d.uncached
-      accCount += u.count
-      accSum += u.avg * u.count
-      accSlow += u.slowRate * u.count
-      accSevere += u.severeRate * u.count
-      p50s.push(u.p50)
-      p95s.push(u.p95)
       for (const [t, c] of Object.entries(d.queryTypes)) {
         queryTypeAcc[t] = (queryTypeAcc[t] ?? 0) + c
       }
     }
-
-    p50s.sort((a, b) => a - b)
-    p95s.sort((a, b) => a - b)
-    const mid = Math.floor(p50s.length / 2)
-    const p95idx = Math.floor(p95s.length * 0.95)
-
-    const overallCacheRate = totalCount > 0 ? totalCached / totalCount : 0
-    const overallSlowRate = accCount > 0 ? accSlow / accCount : 0
-    const overallSevereRate = accCount > 0 ? accSevere / accCount : 0
-
     const queryTypeDistribution = Object.entries(queryTypeAcc)
       .sort(([, a], [, b]) => b - a)
       .map(([name, value]) => ({ name, value }))
-
-    const mkLatency = (p50: number, p95: number, avg: number, count: number, slowRate: number, severeRate: number) => ({
-      count, min: 0, max: 0, avg, p20: 0, p50, p60: 0, p70: 0, p80: 0, p95, p99: 0, slowRate, severeRate,
-    })
-
-    const allLatency = totalCount > 0 ? mkLatency(p50s[mid] ?? 0, p95s[p95idx] ?? 0, accCount > 0 ? accSum / accCount : 0, totalCount, overallSlowRate, overallSevereRate) : null
-    const uncachedLatency = accCount > 0 ? mkLatency(p50s[mid] ?? 0, p95s[p95idx] ?? 0, accSum / accCount, accCount, overallSlowRate, overallSevereRate) : null
 
     return {
       ready,
@@ -394,20 +393,19 @@ export function buildApp(opts?: AppOptions): FastifyInstance {
       timeRangeHours: raw.timeRangeHours as number | undefined,
     }
 
-    // 切换后端时清除旧缓存
-    if (adguardConfig?.baseUrl !== newConfig.baseUrl) {
+    // C10: 配置签名变了才清缓存 / 失效 stats 缓存；C9: 同时递增配置版本号
+    if (configKey(adguardConfig) !== configKey(newConfig)) {
       cache.data = null
       cache.rawEntriesByDomain = new Map()
       cache.timeRange = null
       cache.lastUpdated = null
       cache.ready = false
+      cache.latencies = null
       statsCache = null
+      configVersion++
     }
 
     adguardConfig = newConfig
-    if (!adguardConfig.rejectUnauthorized) {
-      process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
-    }
     cache.lastError = null
     reply.status(200)
     return { message: 'configuration updated', adguardUrl: adguardConfig.baseUrl }
@@ -428,20 +426,38 @@ export function buildApp(opts?: AppOptions): FastifyInstance {
     refreshInProgress = true
     cache.lastError = null
 
+    // C9: 捕获发起时的配置版本，落地前比对；不一致说明这轮结果属于旧配置，丢掉
+    const startedAtVersion = configVersion
+    // R1: 丢弃时前端既等不到 ready 也拿不到 lastError，会停在空面板上。
+    //     这里写一条用户能直接读的消息（不带版本号等内部术语），轮询据此结束并提示。
+    const DISCARDED_MESSAGE = '刷新期间配置被改了，这一轮结果已丢弃，请重新刷新'
+
     refreshFromAdguard(adguardConfig)
       .then(result => {
+        if (startedAtVersion !== configVersion) {
+          console.warn(`Refresh discarded: config changed during refresh (version ${startedAtVersion} -> ${configVersion})`)
+          cache.lastError = DISCARDED_MESSAGE
+          refreshInProgress = false
+          return
+        }
         cache.data = result.domainStats
         cache.rawEntriesByDomain = result.rawEntriesByDomain
         cache.timeRange = result.timeRange.start ? result.timeRange : null
         cache.lastUpdated = new Date().toISOString()
+        cache.latencies = result.latencies
         cache.ready = true
         refreshInProgress = false
       })
       .catch(err => {
-        const msg = err instanceof Error ? err.message : String(err)
+        const msg = describeFetchError(err)
         console.error('Refresh failed:', msg)
-        cache.lastError = msg
-        cache.ready = false
+        if (startedAtVersion === configVersion) {
+          cache.lastError = msg
+          cache.ready = false
+        } else {
+          console.warn(`Refresh error discarded: config changed during refresh (version ${startedAtVersion} -> ${configVersion})`)
+          cache.lastError = DISCARDED_MESSAGE
+        }
         refreshInProgress = false
       })
 

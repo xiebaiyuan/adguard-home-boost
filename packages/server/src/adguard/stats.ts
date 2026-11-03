@@ -1,4 +1,5 @@
 import type { AdguardConfig } from './client.js'
+import { dispatcherFor, type FetchInit } from './dispatcher.js'
 
 /** Raw response from AdGuardHome /control/stats */
 export interface RawStats {
@@ -43,7 +44,8 @@ export async function fetchStats(config: AdguardConfig): Promise<StatsResult> {
       accept: 'application/json',
     },
     signal: AbortSignal.timeout(15_000),
-  })
+    dispatcher: dispatcherFor(config.rejectUnauthorized),
+  } as FetchInit)
 
   if (!res.ok) {
     const body = await res.text().catch(() => '')
@@ -60,7 +62,7 @@ export async function fetchStats(config: AdguardConfig): Promise<StatsResult> {
   }
 
   // Fetch client names from recent query log
-  const clientNameMap = await fetchClientNames(baseUrl, auth)
+  const clientNameMap = await fetchClientNames(baseUrl, auth, config.rejectUnauthorized)
 
   return {
     avgProcessingTime: raw.avg_processing_time,
@@ -98,13 +100,14 @@ export async function fetchStats(config: AdguardConfig): Promise<StatsResult> {
 }
 
 /** Fetch a recent query log page to resolve client IP → hostname mapping */
-async function fetchClientNames(baseUrl: string, auth: string): Promise<Map<string, string>> {
+async function fetchClientNames(baseUrl: string, auth: string, rejectUnauthorized: boolean): Promise<Map<string, string>> {
   const map = new Map<string, string>()
   try {
     const res = await fetch(`${baseUrl}/control/querylog?limit=100`, {
       headers: { authorization: `Basic ${auth}`, accept: 'application/json' },
       signal: AbortSignal.timeout(10_000),
-    })
+      dispatcher: dispatcherFor(rejectUnauthorized),
+    } as FetchInit)
     if (!res.ok) return map
     const json = await res.json() as { data: Array<{ client: string; client_info?: { name?: string } }> }
     for (const entry of json.data ?? []) {

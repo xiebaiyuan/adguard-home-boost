@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { analyze } from './analyze.js'
+import { analyze, classifyReason, type ReasonCategory } from './analyze.js'
 import type { QueryLogEntry } from 'shared'
 
 function q(name: string, elapsedMs: number, cached = false, type = 'A'): QueryLogEntry {
@@ -320,5 +320,66 @@ describe('analyze', () => {
     expect(stats.topClients[1]).toMatchObject({ ip: '192.168.1.20', name: 'phone', count: 1 })
     expect(stats.topClients[2]).toMatchObject({ ip: '192.168.1.30', name: 'ipad', count: 1 })
     expect(stats.totalCount).toBe(4)
+  })
+})
+
+// C11: reason → 归类的向量表，期望值手写，不由实现反推
+const REASON_VECTORS: Array<[string, ReasonCategory]> = [
+  ['FilteredBlackList', 'blocked'],
+  ['FilteredSafeBrowsing', 'blocked'],
+  ['FilteredParental', 'blocked'],
+  ['FilteredBlockedService', 'blocked'],
+  ['Rewrite', 'rewritten'],
+  ['RewriteEtcHosts', 'rewritten'],
+  ['RewriteRule', 'rewritten'],
+  ['FilteredSafeSearch', 'rewritten'],
+  ['NotFilteredNotFound', 'processed'],
+  ['NotFilteredWhiteList', 'allowed'],
+  ['NotFilteredError', 'error'],
+  ['FilteredInvalid', 'error'],
+  ['SomeVendorSpecificReason', 'unknown'],
+  ['', 'unknown'],
+]
+
+describe('C11 blocked 白名单判定', () => {
+  it('向量表：每个 reason 归到预期类别', () => {
+    for (const [reason, expected] of REASON_VECTORS) {
+      expect(classifyReason(reason), reason).toBe(expected)
+    }
+  })
+
+  it('只有 blocked 四类计入 blockedCount，重写/安全搜索/无效都不计', () => {
+    const entries = REASON_VECTORS.map(([reason]) => notFilteredQ('example.com', reason))
+    const stats = analyze(entries)[0]
+    const expectedBlocked = REASON_VECTORS.filter(([, c]) => c === 'blocked').length
+
+    expect(stats.blockedCount).toBe(expectedBlocked)
+    expect(stats.blockedCount).toBe(4)
+    expect(stats.blockedRate).toBeCloseTo(expectedBlocked / entries.length)
+  })
+
+  it('blockedCount + 各归类计数 = totalCount（覆盖完整、不重不漏）', () => {
+    const entries = REASON_VECTORS.map(([reason]) => notFilteredQ('example.com', reason))
+    const stats = analyze(entries)[0]
+
+    // 手工归类，不用 classifyReason，避免与实现同源
+    const counts = { blocked: 0, rewritten: 0, processed: 0, allowed: 0, error: 0, unknown: 0 }
+    for (const [, category] of REASON_VECTORS) counts[category]++
+
+    expect(counts.blocked + counts.rewritten + counts.processed + counts.allowed + counts.error + counts.unknown)
+      .toBe(stats.totalCount)
+    expect(counts.blocked).toBe(stats.blockedCount)
+  })
+
+  it('topBlockRules 只收真拦截的规则', () => {
+    const entries: QueryLogEntry[] = [
+      { ...notFilteredQ('example.com', 'Rewrite'), blockRule: '||rewritten.example^' },
+      { ...notFilteredQ('example.com', 'FilteredSafeSearch'), blockRule: '||safesearch.example^' },
+      { ...notFilteredQ('example.com', 'FilteredParental'), blockRule: '||parental.example^' },
+    ]
+    const stats = analyze(entries)[0]
+
+    expect(stats.blockedCount).toBe(1)
+    expect(stats.topBlockRules).toEqual([{ rule: '||parental.example^', count: 1 }])
   })
 })

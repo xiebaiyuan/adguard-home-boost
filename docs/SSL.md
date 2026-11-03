@@ -16,16 +16,10 @@
 ADGH_SKIP_VERIFY=true
 ```
 
-### 方法三：手动忽略
+### 说明
 
-跳过前端代理验证（仅调试时使用）：
-
-```bash
-export NODE_TLS_REJECT_UNAUTHORIZED=0
-npm run dev
-```
-
-> ⚠️ `NODE_TLS_REJECT_UNAUTHORIZED=0` 会全局关闭 Node.js 的 SSL 验证，**仅建议在本地开发环境使用**。
+跳过证书校验只作用于后端到 AdGuardHome 的那条连接（按请求单独放宽），不会关闭整个进程的 SSL 验证。
+除上面两条路径外没有别的开关；临时排查连通性用下面的 `curl -k`。
 
 ## 使用 HTTPS 地址
 

@@ -1,4 +1,5 @@
 import type { QueryLogEntry } from 'shared'
+import { dispatcherFor, type FetchInit } from './dispatcher.js'
 
 export interface AdguardConfig {
   baseUrl: string
@@ -30,7 +31,12 @@ interface ApiLogEntry {
   client: string
   /** 客户端信息（名称等） */
   client_info?: { name?: string }
-  /** AdGuardHome 处理原因：NotFiltered=放行, Filtered/SafeBrowsing/Parental/BlockedByRule=拦截 */
+  /**
+   * AdGuardHome 处理原因。取值见上游 internal/filtering/reason.go 的 reasonNames：
+   * NotFilteredNotFound / NotFilteredWhiteList / NotFilteredError / FilteredInvalid 不是拦截，
+   * FilteredBlackList / FilteredSafeBrowsing / FilteredParental / FilteredBlockedService 才是，
+   * Rewrite / RewriteEtcHosts / RewriteRule / FilteredSafeSearch 是重写。归类在 analyze.ts。
+   */
   reason?: string
   /** 命中拦截规则的文本 */
   rule?: string
@@ -77,7 +83,8 @@ export async function fetchQueryLog(config: AdguardConfig): Promise<RawFetchedEn
         accept: 'application/json',
       },
       signal: AbortSignal.timeout(30_000),
-    })
+      dispatcher: dispatcherFor(config.rejectUnauthorized),
+    } as FetchInit)
 
     if (!res.ok) {
       const body = await res.text().catch(() => '')

@@ -1,5 +1,31 @@
 import type { QueryLogEntry, AnalysisResult, DomainStats, LatencyStats } from 'shared'
 
+/** AdGuardHome `reason` 的归类，取自上游 internal/filtering/reason.go 的 reasonNames */
+export type ReasonCategory = 'blocked' | 'rewritten' | 'processed' | 'allowed' | 'error' | 'unknown'
+
+/**
+ * C11: reason 白名单。只有这四类算拦截；重写（Rewrite*）、安全搜索改写（FilteredSafeSearch）、
+ * 无效请求（FilteredInvalid）都不是拦截。认不出来的字符串归 unknown，不计入拦截，避免虚高。
+ */
+const REASON_CATEGORIES: Record<string, ReasonCategory> = {
+  FilteredBlackList: 'blocked',
+  FilteredSafeBrowsing: 'blocked',
+  FilteredParental: 'blocked',
+  FilteredBlockedService: 'blocked',
+  Rewrite: 'rewritten',
+  RewriteEtcHosts: 'rewritten',
+  RewriteRule: 'rewritten',
+  FilteredSafeSearch: 'rewritten',
+  NotFilteredNotFound: 'processed',
+  NotFilteredWhiteList: 'allowed',
+  NotFilteredError: 'error',
+  FilteredInvalid: 'error',
+}
+
+export function classifyReason(reason: string): ReasonCategory {
+  return REASON_CATEGORIES[reason] ?? 'unknown'
+}
+
 /** 按域名聚合分析查询日志 */
 export function analyze(entries: QueryLogEntry[]): AnalysisResult {
   const grouped = new Map<string, QueryLogEntry[]>()
@@ -56,8 +82,8 @@ function computeDomainStats(domain: string, entries: QueryLogEntry[]): DomainSta
       }
     }
 
-    // 拦截统计：reason 以 NotFiltered 开头视为放行，其他（Filtered*、BlockedByRule 等）视为拦截
-    if (e.blockReason && !e.blockReason.startsWith('NotFiltered')) {
+    // C11: 只有白名单里的 blocked 四类算拦截；reason 缺失认成 unknown，不计入
+    if (classifyReason(e.blockReason ?? '') === 'blocked') {
       blockedCount++
       if (e.blockRule) {
         blockRuleCounts.set(e.blockRule, (blockRuleCounts.get(e.blockRule) ?? 0) + 1)
@@ -90,7 +116,8 @@ function computeDomainStats(domain: string, entries: QueryLogEntry[]): DomainSta
   }
 }
 
-function computeLatencyStats(latencies: number[]): LatencyStats {
+/** C7: 百分位线性插值 + 13 个字段。per-domain 统计与全局聚合共用这一份 */
+export function computeLatencyStats(latencies: number[]): LatencyStats {
   const n = latencies.length
   if (n === 0) {
     return { count: 0, min: 0, max: 0, avg: 0, p20: 0, p50: 0, p60: 0, p70: 0, p80: 0, p95: 0, p99: 0, slowRate: 0, severeRate: 0 }

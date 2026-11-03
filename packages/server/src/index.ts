@@ -35,11 +35,7 @@ function loadAdguardConfig(): AdguardConfig | null {
 
   const skipVerify = process.env.ADGH_SKIP_VERIFY === 'true'
 
-  // 自签名证书: 关闭 Node.js SSL 验证
-  if (skipVerify) {
-    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
-  }
-
+  // C8: 自签名证书走按请求的 dispatcher（见 adguard/dispatcher.ts），不再动进程级 env
   return {
     baseUrl: url,
     username: user,

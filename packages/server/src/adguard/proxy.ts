@@ -1,4 +1,6 @@
 import type { AdguardConfig } from './client.js'
+import { dispatcherFor, type FetchInit } from './dispatcher.js'
+import { describeFetchError } from './errors.js'
 
 interface ProxyResult {
   status: number
@@ -42,11 +44,12 @@ export async function proxyAdguard(
     accept: 'application/json',
   }
 
-  const opts: RequestInit = {
+  const opts: FetchInit = {
     method,
     headers,
     signal: AbortSignal.timeout(15_000),
     redirect: 'manual',
+    dispatcher: dispatcherFor(config.rejectUnauthorized),
   }
 
   if (body !== undefined && method !== 'GET') {
@@ -60,7 +63,7 @@ export async function proxyAdguard(
     const data = text ? safeParse(text) : null
     return { status: res.status, data }
   } catch (err) {
-    return { status: 502, data: { error: err instanceof Error ? err.message : String(err) } }
+    return { status: 502, data: { error: describeFetchError(err) } }
   }
 }
 
