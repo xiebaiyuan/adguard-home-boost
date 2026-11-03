@@ -9,6 +9,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 npm run dev
 # → Backend: http://localhost:3080 (tsx watch)
 # → Frontend: http://localhost:5173 (Vite dev server, proxies /api to 3080)
+#
+# Access credentials (HTTP Basic): every route needs them, including /api/health
+# and the static files. Set both ADGH_AUTH_USER and ADGH_AUTH_PASSWD to enable.
+# With neither set, HOST must be a loopback address (127.0.0.1 / localhost / ::1),
+# otherwise startup exits non-zero. Local dev: HOST=127.0.0.1 needs no credentials.
 
 # Run all tests (server then client)
 npm test
@@ -44,7 +49,7 @@ npm run release   # reads version from packages/client/package.json, tags and pu
 - `packages/client/package.json` 的 `version` 字段是唯一版本来源，构建时通过 Vite `define` 注入为 `__APP_VERSION__`
 - 发版流程：`npm version <patch|minor|major> -w @adgh/dashboard` → `git add packages/client/package.json` → `git commit` → `npm run release`（自动读取 version 打 tag 并推送）
 - 禁止手动 `git tag` 不打版本号，或打了 tag 不更新 package.json
-- 当前版本：`1.10.0`
+- 当前版本：`2.0.0`
 
 ## Workflow
 
@@ -125,3 +130,17 @@ No global state library. Component-local state + hooks:
 - Backend caches analysis results in process memory (not persisted)
 - Recharts and phosphor-icons auto-chunked by Vite build config
 - Skeleton screens removed in favor of content placeholder + CSS fade-in
+
+## Agent skills
+
+### Issue tracker
+
+Issues and specs live as GitHub issues, driven by the `gh` CLI. See `obsidian-docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Five canonical triage roles mapped to label strings. See `obsidian-docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single context: one `GLOSSARY.md` at the repo root plus `obsidian-docs/adr/`. See `obsidian-docs/agents/domain.md`.

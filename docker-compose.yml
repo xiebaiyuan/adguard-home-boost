@@ -8,10 +8,19 @@ services:
       - "49241:3080"  # 后端 API + 前端静态页面
 
     environment:
-      - ADGH_URL=http://192.168.8.88
-      - ADGH_USER=xiebaiyuan
-      - ADGH_PASSWD=your_password
+      # AdGuardHome 连接（被管理端）。值从同目录 .env 读；未设置时用冒号后的占位。
+      - ADGH_URL=${ADGH_URL:-http://192.168.1.100}
+      - ADGH_USER=${ADGH_USER:-your_username}
+      - ADGH_PASSWD=${ADGH_PASSWD:-your_password}
       - ADGH_SKIP_VERIFY=true
+      # 准入凭据（HTTP Basic）。网页、静态文件、/api/health 全都要过这一层。
+      # 两个都为空时，下面的 HOST=0.0.0.0 不是回环地址，进程启动直接退出
+      # （退出码非 0，restart: unless-stopped 会让它反复重启）。
+      # 不想配凭据就把 HOST 设成 127.0.0.1，只监听容器内回环。
+      # 迁移步骤见 README 的「Upgrading from an earlier release / 升级必读」。
+      - ADGH_AUTH_USER=${ADGH_AUTH_USER:-}
+      - ADGH_AUTH_PASSWD=${ADGH_AUTH_PASSWD:-}
+      - HOST=${HOST:-0.0.0.0}
       - TZ=Asia/Shanghai
 
     volumes:

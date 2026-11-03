@@ -33,12 +33,50 @@ npm run dev
 ```bash
 docker run -d --name adguard-home-boost \
   -p 3080:3080 \
-  -e ADGH_URL=http://192.168.8.88 \
+  -e ADGH_URL=http://192.168.1.100 \
   -e ADGH_USER=your_username \
   -e ADGH_PASSWD=your_password \
   -e ADGH_SKIP_VERIFY=true \
+  -e ADGH_AUTH_USER=admin \
+  -e ADGH_AUTH_PASSWD=change-me-to-a-long-random-string \
   xiebaiyuan/adguard-home-boost:latest
 ```
+
+`ADGH_AUTH_USER` / `ADGH_AUTH_PASSWD` 是本面板自己的 HTTP Basic 凭据。网页、静态文件、
+`/api/health` 全都要过这一层。不传这两项容器会立刻停：镜像内置 `HOST=0.0.0.0`，而没配
+凭据时只接受回环监听地址。
+
+---
+
+## ⚠️ 升级必读（破坏性变更）
+
+现在所有路由都要 HTTP Basic 凭据。`ADGH_AUTH_USER` 和 `ADGH_AUTH_PASSWD` 两个都没配时，
+服务端拒绝绑非回环地址，进程直接退出，退出码非 0。Docker 镜像内置 `HOST=0.0.0.0`，所以
+已有的容器不改配置起不来。下面两条命令选一条。
+
+**方案 A：配凭据，保留局域网访问。** `docker-compose.yml` 从同目录的 `.env` 读这两个值：
+
+```bash
+cd /path/to/adguard-home-boost
+cat >> .env <<'EOF'
+ADGH_AUTH_USER=admin
+ADGH_AUTH_PASSWD=change-me-to-a-long-random-string
+EOF
+docker compose pull && docker compose up -d
+```
+
+打开面板时浏览器会弹框要这个用户名和密码。
+
+**方案 B：不配凭据，只监听回环。**
+
+```bash
+cd /path/to/adguard-home-boost
+echo 'HOST=127.0.0.1' >> .env
+docker compose pull && docker compose up -d
+```
+
+这样应用只监听容器内回环。配合 `docker-compose.yml` 现在的端口映射，`http://<宿主机>:49241`
+也就连不上了。要让宿主机自己能访问，要么用方案 A，要么把映射改成 `127.0.0.1:49241:3080`。
 
 ---
 
@@ -116,7 +154,9 @@ docker run -d --name adguard-home-boost \
 | `ADGH_PASSWD` | 密码 | — |
 | `ADGH_SKIP_VERIFY` | 跳过 SSL 验证 | `false` |
 | `PORT` | 监听端口 | `3080` |
-| `HOST` | 监听地址 | `0.0.0.0` |
+| `HOST` | 监听地址。没配凭据时只接受回环地址（`127.0.0.1` / `localhost` / `::1`），设成非回环地址会在启动时退出。Docker 镜像内置 `0.0.0.0` | `0.0.0.0` |
+| `ADGH_AUTH_USER` | 本面板的 HTTP Basic 用户名。和 `ADGH_AUTH_PASSWD` 都非空才启用 | — |
+| `ADGH_AUTH_PASSWD` | 本面板的 HTTP Basic 密码 | — |
 
 ---
 

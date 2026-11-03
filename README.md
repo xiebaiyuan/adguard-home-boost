@@ -35,12 +35,55 @@ Open `http://localhost:5173` in your browser. Click the ⚙️ icon, enter your 
 ```bash
 docker run -d --name adguard-home-boost \
   -p 3080:3080 \
-  -e ADGH_URL=http://192.168.8.88 \
+  -e ADGH_URL=http://192.168.1.100 \
   -e ADGH_USER=your_username \
   -e ADGH_PASSWD=your_password \
   -e ADGH_SKIP_VERIFY=true \
+  -e ADGH_AUTH_USER=admin \
+  -e ADGH_AUTH_PASSWD=change-me-to-a-long-random-string \
   xiebaiyuan/adguard-home-boost:latest
 ```
+
+`ADGH_AUTH_USER` / `ADGH_AUTH_PASSWD` are this panel's own HTTP Basic credentials.
+Every route asks for them, including `/api/health` and the static files. Leave them
+out and the container stops right away: the image sets `HOST=0.0.0.0`, and without
+credentials the app accepts a loopback bind address only.
+
+---
+
+## ⚠️ Upgrading from an earlier release (breaking change)
+
+Every route now requires HTTP Basic credentials. If neither `ADGH_AUTH_USER` nor
+`ADGH_AUTH_PASSWD` is set, the server refuses to bind a non-loopback address and
+exits with a non-zero status. The Docker image ships `HOST=0.0.0.0`, so an existing
+container will not start until you do one of the two things below.
+
+**Option A — set credentials, keep LAN access.** `docker-compose.yml` reads these
+values from a `.env` file next to it:
+
+```bash
+cd /path/to/adguard-home-boost
+cat >> .env <<'EOF'
+ADGH_AUTH_USER=admin
+ADGH_AUTH_PASSWD=change-me-to-a-long-random-string
+EOF
+docker compose pull && docker compose up -d
+```
+
+Open the dashboard and the browser asks for that username and password.
+
+**Option B — no credentials, loopback only.**
+
+```bash
+cd /path/to/adguard-home-boost
+echo 'HOST=127.0.0.1' >> .env
+docker compose pull && docker compose up -d
+```
+
+The app then listens on the container's own loopback only. With the port mapping in
+`docker-compose.yml` that also means `http://<host>:49241` stops answering. For
+Docker access from the host alone, either keep Option A or publish the port on the
+host loopback by changing the mapping to `127.0.0.1:49241:3080`.
 
 ---
 
@@ -126,7 +169,9 @@ Click any domain row to expand a detailed view:
 | `ADGH_PASSWD` | Admin password | — |
 | `ADGH_SKIP_VERIFY` | Skip SSL certificate verification | `false` |
 | `PORT` | Server port | `3080` |
-| `HOST` | Listen address | `0.0.0.0` |
+| `HOST` | Listen address. Without credentials only a loopback address (`127.0.0.1` / `localhost` / `::1`) is accepted; a non-loopback value makes the process exit at startup. The Docker image sets `0.0.0.0` | `0.0.0.0` |
+| `ADGH_AUTH_USER` | HTTP Basic username for this panel. Auth is on when this and `ADGH_AUTH_PASSWD` are both non-empty | — |
+| `ADGH_AUTH_PASSWD` | HTTP Basic password for this panel | — |
 
 ---
 

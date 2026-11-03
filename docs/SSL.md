@@ -45,7 +45,7 @@ npm run dev
 ### 验证 AdGuardHome API 是否可达
 
 ```bash
-curl -k -u "用户名:密码" "http://192.168.8.97/control/querylog?limit=1"
+curl -k -u "用户名:密码" "http://192.168.1.100/control/querylog?limit=1"
 ```
 
 返回 JSON 表示连接正常。`-k` 用于跳过自签名证书验证。
