@@ -48,7 +48,7 @@ const PAGE_SIZE = 500
 const MAX_ENTRIES = 100_000
 
 /** C5: [DEBUG] 日志门控，ADGH_DEBUG 未设或为 0/false 时不输出 */
-function isDebugEnabled(): boolean {
+export function isDebugEnabled(): boolean {
   const flag = process.env.ADGH_DEBUG
   return flag !== undefined && flag !== '' && flag !== '0' && flag.toLowerCase() !== 'false'
 }

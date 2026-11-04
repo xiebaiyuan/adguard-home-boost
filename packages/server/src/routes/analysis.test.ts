@@ -30,19 +30,6 @@ describe('GET /api/analysis/summary', () => {
   })
 })
 
-describe('GET /api/analysis/domains', () => {
-  it('returns 200 with empty array when no data loaded', async () => {
-    const res = await app.inject({ method: 'GET', url: '/api/analysis/domains' })
-    expect(res.statusCode).toBe(200)
-    expect(JSON.parse(res.body)).toEqual([])
-  })
-
-  it('supports search and sort parameters', async () => {
-    const res = await app.inject({ method: 'GET', url: '/api/analysis/domains?search=test&sort=totalCount&order=asc' })
-    expect(res.statusCode).toBe(200)
-  })
-})
-
 describe('GET /api/analysis/domain-detail', () => {
   it('returns 200 with domain detail when data available', async () => {
     const entry: RawFetchedEntry = {

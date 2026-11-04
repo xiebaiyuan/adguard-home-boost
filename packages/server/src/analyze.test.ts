@@ -138,12 +138,6 @@ describe('analyze', () => {
     expect(stats.uncached.min).toBe(50)
     expect(stats.uncached.max).toBe(150)
     expect(stats.uncached.avg).toBe(100)
-
-    // All: includes cache hits
-    expect(stats.all.count).toBe(4)
-    expect(stats.all.min).toBe(2)
-    expect(stats.all.max).toBe(150)
-    expect(stats.all.avg).toBe((2 + 3 + 50 + 150) / 4)
   })
 
   it('computes percentiles correctly', () => {
@@ -198,11 +192,6 @@ describe('analyze', () => {
     expect(stats.uncached.min).toBe(12)
     expect(stats.uncached.max).toBe(120)
     expect(stats.uncached.avg).toBe(59)
-
-    // All stats (same as uncached since no cache)
-    expect(stats.all.min).toBe(12)
-    expect(stats.all.max).toBe(120)
-    expect(stats.all.avg).toBe(59)
   })
 
   it('computes blockedCount and blockedRate correctly', () => {
@@ -286,7 +275,6 @@ describe('analyze', () => {
     expect(stats).toHaveProperty('cacheHitRate')
     expect(stats).toHaveProperty('queryTypes')
     expect(stats).toHaveProperty('uncached')
-    expect(stats).toHaveProperty('all')
     expect(stats).toHaveProperty('topClients')
     expect(stats).toHaveProperty('blockedCount')
     expect(stats).toHaveProperty('blockedRate')

@@ -1,4 +1,6 @@
+import type { AdguardStats } from 'shared'
 import type { AdguardConfig } from './client.js'
+import { isDebugEnabled } from './client.js'
 import { dispatcherFor, type FetchInit } from './dispatcher.js'
 
 /** Raw response from AdGuardHome /control/stats */
@@ -19,22 +21,7 @@ export interface RawStats {
   time_units: string
 }
 
-export interface StatsResult {
-  avgProcessingTime: number
-  totalQueries: number
-  totalBlocked: number
-  topQueriedDomains: Array<{ domain: string; count: number }>
-  topClients: Array<{ ip: string; count: number; name?: string }>
-  topBlockedDomains: Array<{ domain: string; count: number }>
-  topUpstreams: Array<{ upstream: string; count: number; avgTime: number }>
-  history: Array<{ queries: number; blocked: number }>
-  timeSpan: { count: number; unit: string }
-}
-
-const PAGE_SIZE = 500
-const MAX_ENTRIES = 100_000
-
-export async function fetchStats(config: AdguardConfig): Promise<StatsResult> {
+export async function fetchStats(config: AdguardConfig): Promise<AdguardStats> {
   const baseUrl = config.baseUrl.replace(/\/$/, '')
   const auth = Buffer.from(`${config.username}:${config.password}`).toString('base64')
 
@@ -115,6 +102,12 @@ async function fetchClientNames(baseUrl: string, auth: string, rejectUnauthorize
         map.set(entry.client, entry.client_info.name)
       }
     }
-  } catch {}
+  } catch (err) {
+    // N2: 不再静默吞错。这条只是附加信息（客户端名解析失败不影响主数据），
+    // 所以按 ADGH_DEBUG 门控，未设时保持安静。
+    if (isDebugEnabled()) {
+      console.log('[DEBUG] client name lookup failed:', err instanceof Error ? err.message : String(err))
+    }
+  }
   return map
 }

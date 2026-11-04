@@ -2,15 +2,17 @@ import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import fastifyStatic from '@fastify/static'
 import { resolve } from 'path'
+import { readFileSync } from 'node:fs'
 import { timingSafeEqual } from 'node:crypto'
 import type { FastifyInstance } from 'fastify'
-import type { AnalysisResult } from 'shared'
+import type { AdguardStats, AnalysisResult, AnalysisSummary, DashboardPayload } from 'shared'
 import type { AdguardConfig, RawFetchedEntry } from './adguard/client.js'
 import type { LatencyDistribution } from './adguard/fetcher.js'
 import { refreshFromAdguard } from './adguard/fetcher.js'
 import { fetchStats } from './adguard/stats.js'
 import { proxyAdguard } from './adguard/proxy.js'
 import { describeFetchError } from './adguard/errors.js'
+import { DEFAULT_ALLOWED_HOSTS, buildHostAllowlist } from './adguard/host-allowlist.js'
 import { computeLatencyStats } from './analyze.js'
 
 interface CacheState {
@@ -41,6 +43,22 @@ function configKey(c: AdguardConfig | null): string {
 export interface AppOptions {
   cacheSeed?: Map<string, RawFetchedEntry[]>
   adguardConfig?: AdguardConfig | null
+}
+
+/**
+ * #24: 版本号唯一来源是 packages/client/package.json（CLAUDE.md 的 Version Constraint）。
+ * app.ts 编译到 packages/server/{src,dist}，两种位置下 `../../client/package.json` 都指向同一文件。
+ * 运行镜像里这个文件可能还没带上（task-17 的 #12 才补），读不到就回落到
+ * `process.env.APP_VERSION ?? 'unknown'`，不抛异常、不影响启动。
+ */
+export function resolveAppVersion(baseDir: string = import.meta.dirname): string {
+  try {
+    const pkg = JSON.parse(readFileSync(resolve(baseDir, '../../client/package.json'), 'utf8')) as { version?: unknown }
+    if (typeof pkg.version === 'string' && pkg.version.trim() !== '') return pkg.version.trim()
+  } catch {
+    // 文件不存在 / 内容坏了都走回落
+  }
+  return process.env.APP_VERSION ?? 'unknown'
 }
 
 /** C1: 恒定时间字符串比较。先补齐到同长度再比，长度不等直接判否 */
@@ -89,8 +107,15 @@ export function buildApp(opts?: AppOptions): FastifyInstance {
   }
 
   // Stats cache (实时统计) — 30s TTL，带配置签名，配置变了立刻失效
-  let statsCache: { data: any; expiresAt: number; key: string } | null = null
+  let statsCache: { data: AdguardStats; expiresAt: number; key: string } | null = null
   const STATS_TTL = 30_000
+
+  // #24: 版本在启动时读一次（文件变了也不会在运行中漂）
+  const appVersion = resolveAppVersion()
+
+  // #2: baseUrl 主机白名单。未设置 ADGH_ALLOWED_HOSTS 时用默认策略（回环 + RFC1918，拒公网），
+  // 见 adguard/host-allowlist.ts 的注释。改这个 env 需要重启进程。
+  const hostAllowlist = buildHostAllowlist(process.env.ADGH_ALLOWED_HOSTS ?? DEFAULT_ALLOWED_HOSTS)
 
   // If cacheSeed is provided, treat as pre-loaded data
   if (opts?.cacheSeed && opts.cacheSeed.size > 0) {
@@ -133,14 +158,14 @@ export function buildApp(opts?: AppOptions): FastifyInstance {
   app.get('/api/health', async () => {
     return {
       status: 'ok',
-      version: '0.1.0',
+      version: appVersion,
       adguardConfigured: adguardConfig !== null,
       adguardUrl: adguardConfig?.baseUrl ?? null,
     }
   })
 
   // Stats from AdGuardHome (cached, 30s TTL)
-  app.get('/api/analysis/stats', async (request, reply) => {
+  app.get('/api/analysis/stats', async (request, reply): Promise<AdguardStats | { error: string }> => {
     if (!adguardConfig) {
       reply.status(400)
       return { error: 'AdGuardHome not configured' }
@@ -160,7 +185,7 @@ export function buildApp(opts?: AppOptions): FastifyInstance {
   })
 
   // Summary
-  app.get('/api/analysis/summary', async () => {
+  app.get('/api/analysis/summary', async (): Promise<AnalysisSummary> => {
     return {
       ready: cache.ready,
       timeRange: cache.timeRange,
@@ -172,7 +197,7 @@ export function buildApp(opts?: AppOptions): FastifyInstance {
   })
 
   // Dashboard payload — 后端预聚合，前端一条请求拿到全部数据直接渲染
-  app.get('/api/analysis/dashboard', async () => {
+  app.get('/api/analysis/dashboard', async (): Promise<DashboardPayload> => {
     const domains = cache.data ?? []
     const ready = cache.ready
     const latencies = cache.latencies
@@ -215,46 +240,6 @@ export function buildApp(opts?: AppOptions): FastifyInstance {
       queryTypeDistribution,
       domains: domains.slice(0, 500),
     }
-  })
-
-  // Domain list
-  app.get('/api/analysis/domains', async (request) => {
-    const query = request.query as Record<string, string>
-    let result = cache.data ?? []
-
-    // Filter by query type
-    if (query.type && query.type !== 'all') {
-      result = result.filter(d => d.queryTypes[query.type] > 0)
-    }
-
-    // Search by domain
-    if (query.search) {
-      const search = query.search.toLowerCase()
-      result = result.filter(d => d.domain.toLowerCase().includes(search))
-    }
-
-    // Sort
-    const sortBy = query.sort ?? 'p95'
-    const order = query.order ?? 'desc'
-    const desc = order === 'desc'
-    result = [...result].sort((a, b) => {
-      let va: number, vb: number
-      switch (sortBy) {
-        case 'totalCount': va = a.totalCount; vb = b.totalCount; break
-        case 'p50': va = a.uncached.p50; vb = b.uncached.p50; break
-        case 'cacheHitRate': va = a.cacheHitRate; vb = b.cacheHitRate; break
-        case 'slowRate': va = a.uncached.slowRate; vb = b.uncached.slowRate; break
-        case 'p95':
-        default: va = a.uncached.p95; vb = b.uncached.p95; break
-      }
-      return desc ? vb - va : va - vb
-    })
-
-    // Limit
-    const limit = parseInt(query.limit ?? '50', 10)
-    result = result.slice(0, Math.min(limit, 500))
-
-    return result
   })
 
   // Domain detail — 使用查询参数避免 '.' 等特殊域名的路径标准化问题
@@ -374,7 +359,8 @@ export function buildApp(opts?: AppOptions): FastifyInstance {
       parsed = new URL(url)
     } catch {
       reply.status(400)
-      return { error: `baseUrl is not a valid URL: ${baseUrlRaw}` }
+      // N1: 不回显原始输入（畸形串里可能夹 userinfo），只给原因
+      return { error: 'baseUrl is not a valid URL' }
     }
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
       reply.status(400)
@@ -383,6 +369,11 @@ export function buildApp(opts?: AppOptions): FastifyInstance {
     if (parsed.username || parsed.password) {
       reply.status(400)
       return { error: 'baseUrl must not contain userinfo; use username/password fields' }
+    }
+    // #2: 主机白名单。parsed.hostname 不含 userinfo，回显它是安全的（也便于排查）
+    if (!hostAllowlist.allows(parsed.hostname)) {
+      reply.status(400)
+      return { error: `baseUrl host is not allowed: ${parsed.hostname}` }
     }
 
     const newConfig: AdguardConfig = {

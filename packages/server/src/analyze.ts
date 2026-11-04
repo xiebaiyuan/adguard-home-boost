@@ -50,16 +50,14 @@ export function analyze(entries: QueryLogEntry[]): AnalysisResult {
 function computeDomainStats(domain: string, entries: QueryLogEntry[]): DomainStats {
   const totalCount = entries.length
   const uncachedLatencies: number[] = []
-  const allLatencies: number[] = []
   const queryTypes: Record<string, number> = {}
   let cachedCount = 0
   const clientCounts = new Map<string, { ip: string; name?: string; count: number }>()
   let blockedCount = 0
   const blockRuleCounts = new Map<string, number>()
 
-  // 单次遍历：同时收集缓存统计、延时列表、查询类型分布、客户端排行、拦截统计
+  // 单次遍历：同时收集缓存统计、非缓存延时列表、查询类型分布、客户端排行、拦截统计
   for (const e of entries) {
-    allLatencies.push(e.elapsedMs)
     if (e.cached) {
       cachedCount++
     } else {
@@ -108,7 +106,6 @@ function computeDomainStats(domain: string, entries: QueryLogEntry[]): DomainSta
     cacheHitRate: totalCount > 0 ? cachedCount / totalCount : 0,
     queryTypes,
     uncached: computeLatencyStats(uncachedLatencies),
-    all: computeLatencyStats(allLatencies),
     topClients,
     blockedCount,
     blockedRate: totalCount > 0 ? blockedCount / totalCount : 0,
