@@ -48,8 +48,6 @@ export interface DomainStats {
   queryTypes: Record<string, number>
   /** 仅 uncached 查询（上游真实性能） */
   uncached: LatencyStats
-  /** 全部查询（用户实际体验） */
-  all: LatencyStats
   /** 查询此域名的客户端排行（按次数降序，最多 10 个） */
   topClients: Array<{
     ip: string
@@ -69,3 +67,47 @@ export interface DomainStats {
 }
 
 export type AnalysisResult = DomainStats[]
+
+/** `GET /api/analysis/summary` 的响应：缓存状态与最近一次更新时间 */
+export interface AnalysisSummary {
+  ready: boolean
+  timeRange: { start: string; end: string } | null
+  lastUpdated: string | null
+  lastError: string | null
+  domainCount: number
+  adguardUrl: string | null
+}
+
+/** `GET /api/analysis/dashboard` 的响应：后端预聚合后一次性给前端 */
+export interface DashboardPayload {
+  ready: boolean
+  timeRange: { start: string; end: string } | null
+  lastUpdated: string | null
+  lastError: string | null
+  adguardUrl: string | null
+  domainCount: number
+  aggregate: {
+    totalCount: number
+    totalCached: number
+    overallCacheRate: number
+    /** 仅未缓存查询的全局分布 */
+    overallUncached: LatencyStats | null
+    /** 全量查询的全局分布 */
+    overallAll: LatencyStats | null
+  }
+  queryTypeDistribution: Array<{ name: string; value: number }>
+  domains: DomainStats[]
+}
+
+/** `GET /api/analysis/stats` 的响应：来自 AdGuardHome 的实时统计 */
+export interface AdguardStats {
+  avgProcessingTime: number
+  totalQueries: number
+  totalBlocked: number
+  topQueriedDomains: Array<{ domain: string; count: number }>
+  topClients: Array<{ ip: string; count: number; name?: string }>
+  topBlockedDomains: Array<{ domain: string; count: number }>
+  topUpstreams: Array<{ upstream: string; count: number; avgTime: number }>
+  history: Array<{ queries: number; blocked: number }>
+  timeSpan: { count: number; unit: string }
+}

@@ -1,8 +1,21 @@
 import { useState, useEffect, lazy, Suspense } from 'react'
 import { ClockCounterClockwise, Users, ShieldCheck } from '@phosphor-icons/react'
-import type { AdguardStats } from '../lib/types'
+import type { AdguardStats } from 'shared'
 import { fmtPreciseMs } from '../lib/format'
 import { useI18n } from '../lib/i18n'
+
+/** 数据未就绪时的兜底：字段全 0，避免非空断言 */
+const EMPTY_STATS: AdguardStats = {
+  avgProcessingTime: 0,
+  totalQueries: 0,
+  totalBlocked: 0,
+  topQueriedDomains: [],
+  topClients: [],
+  topBlockedDomains: [],
+  topUpstreams: [],
+  history: [],
+  timeSpan: { count: 0, unit: 'days' },
+}
 
 // 图表组件懒加载：recharts (~65KB gz) 只在图表实际显示时才下载
 const PieChartCard = lazy(() => import('./PieChartCard'))
@@ -31,13 +44,12 @@ function Card({ title, icon, children, ready }: {
   )
 }
 
-export function StatsPanel({ onRefreshNeeded, queryTypeDistribution }: {
-  onRefreshNeeded: () => void
+export function StatsPanel({ queryTypeDistribution }: {
   queryTypeDistribution?: Array<{ name: string; value: number }>
 }) {
   const [stats, setStats] = useState<AdguardStats | null>(null)
   const [loading, setLoading] = useState(true)
-  const [_error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const [showCharts, setShowCharts] = useState(false)
   const { t } = useI18n()
 
@@ -49,7 +61,7 @@ export function StatsPanel({ onRefreshNeeded, queryTypeDistribution }: {
       .then(data => { if (!cancelled) { setStats(data); setLoading(false) } })
       .catch(e => { if (!cancelled) { setError(String(e)); setLoading(false) } })
     return () => { cancelled = true }
-  }, [onRefreshNeeded])
+  }, [])
 
   // 数据就绪后才启用图表渲染（延迟一帧，避免展开交互卡顿）
   useEffect(() => {
@@ -60,34 +72,42 @@ export function StatsPanel({ onRefreshNeeded, queryTypeDistribution }: {
   }, [loading, stats])
 
   const ready = !loading && stats !== null
+  // #20/#32 用一个空统计兜底，替掉原来 12 处 st 非空断言；_error 改成真正渲染出来的 error
+  const st = stats ?? EMPTY_STATS
   const blockedRatio = ready ? [
-    { name: t('stats.blocked'), value: stats!.totalBlocked },
-    { name: t('stats.allowed'), value: stats!.totalQueries },
+    { name: t('stats.blocked'), value: st.totalBlocked },
+    { name: t('stats.allowed'), value: st.totalQueries },
   ] : []
 
   return (
     <div className="space-y-6">
 
+      {error && (
+        <div role="alert" className="rounded-lg px-4 py-3 text-xs" style={{ background: 'oklch(0.58 0.22 27 / 0.1)', color: 'var(--c-danger)' }}>
+          {t('stats.loadFail')}
+        </div>
+      )}
+
       {/* ── KPI 行 ── 永久 4 卡片，数据到了淡入数字 ── */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Card title={t('stats.avgProcess')} icon={<ClockCounterClockwise size={14} />} ready={ready}>
           <div className="text-xl font-semibold tabular-nums gradient-text" style={{ minHeight: '1.5rem' }}>
-            {ready ? fmtPreciseMs(stats!.avgProcessingTime * 1000) : '—'}
+            {ready ? fmtPreciseMs(st.avgProcessingTime * 1000) : '—'}
           </div>
         </Card>
         <Card title={t('stats.upstreams')} icon={<span className="h-2 w-2 rounded-full" style={{ background: 'var(--c-accent)' }} />} ready={ready}>
           <div className="text-xl font-semibold tabular-nums gradient-text" style={{ minHeight: '1.5rem' }}>
-            {ready ? stats!.topUpstreams.length : '—'}
+            {ready ? st.topUpstreams.length : '—'}
           </div>
         </Card>
         <Card title={t('stats.blocked')} icon={<ShieldCheck size={14} />} ready={ready}>
           <div className="text-xl font-semibold tabular-nums" style={{ minHeight: '1.5rem', color: ready ? 'var(--c-danger)' : 'inherit' }}>
-            {ready ? <>{stats!.totalBlocked.toLocaleString()}<span className="ml-1 text-sm font-normal" style={{ color: 'var(--c-text-secondary)' }}>({((stats!.totalBlocked / (stats!.totalQueries + stats!.totalBlocked)) * 100).toFixed(1)}%)</span></> : '—'}
+            {ready ? <>{st.totalBlocked.toLocaleString()}<span className="ml-1 text-sm font-normal" style={{ color: 'var(--c-text-secondary)' }}>({((st.totalBlocked / (st.totalQueries + st.totalBlocked)) * 100).toFixed(1)}%)</span></> : '—'}
           </div>
         </Card>
         <Card title={t('stats.clients')} icon={<Users size={14} />} ready={ready}>
           <div className="text-xl font-semibold tabular-nums gradient-text" style={{ minHeight: '1.5rem' }}>
-            {ready ? stats!.topClients.length : '—'}
+            {ready ? st.topClients.length : '—'}
           </div>
         </Card>
       </div>
@@ -111,7 +131,7 @@ export function StatsPanel({ onRefreshNeeded, queryTypeDistribution }: {
         <Card title={t('stats.clientRank')} ready={showCharts && !!stats?.topClients.length}>
           {showCharts && stats?.topClients.length ? (
             <Suspense fallback={<div style={{ minHeight: '7rem' }} />}>
-              <PieChartCard data={stats!.topClients.map(c => ({ name: c.name || c.ip, value: c.count }))} />
+              <PieChartCard data={st.topClients.map(c => ({ name: c.name || c.ip, value: c.count }))} />
             </Suspense>
           ) : <div style={{ minHeight: '7rem' }} />}
         </Card>
@@ -122,7 +142,7 @@ export function StatsPanel({ onRefreshNeeded, queryTypeDistribution }: {
         {/* 客户端排行 */}
         <Card title={t('stats.clientRank')} icon={<Users size={14} className="mr-1 inline" />} ready={ready}>
           <div className="space-y-1">
-            {ready && stats!.topClients.length > 0 ? stats!.topClients.map((c, i) => (
+            {ready && st.topClients.length > 0 ? st.topClients.map((c, i) => (
               <div key={c.ip} className="flex items-center gap-2 text-xs">
                 <span className="w-4 shrink-0 text-right tabular-nums" style={{ color: 'var(--c-text-secondary)' }}>{i + 1}</span>
                 <span className="font-mono text-[11px]">
@@ -136,9 +156,9 @@ export function StatsPanel({ onRefreshNeeded, queryTypeDistribution }: {
 
         {/* 屏蔽域名排行 */}
         <Card title={t('stats.blockDomainRank')} icon={<ShieldCheck size={14} className="mr-1 inline" />} ready={ready}>
-          {ready && stats!.topBlockedDomains.length > 0 ? (
+          {ready && st.topBlockedDomains.length > 0 ? (
             <div className="space-y-1">
-              {stats!.topBlockedDomains.slice(0, 10).map((d, i) => (
+              {st.topBlockedDomains.slice(0, 10).map((d, i) => (
                 <div key={d.domain} className="flex items-center gap-2 text-xs">
                   <span className="w-4 shrink-0 text-right tabular-nums" style={{ color: 'var(--c-text-secondary)' }}>{i + 1}</span>
                   <span className="truncate">{d.domain}</span>
@@ -152,7 +172,7 @@ export function StatsPanel({ onRefreshNeeded, queryTypeDistribution }: {
         {/* 上游服务响应 */}
         <Card title={t('stats.upstreamResp')} icon={<span className="h-2 w-2 rounded-full mr-1 inline-block" style={{ background: 'var(--c-accent)' }} />} ready={ready}>
           <div className="space-y-1">
-            {ready && stats!.topUpstreams.length > 0 ? stats!.topUpstreams.map(u => (
+            {ready && st.topUpstreams.length > 0 ? st.topUpstreams.map(u => (
               <div key={u.upstream} className="flex items-center gap-2 text-xs">
                 <span className="max-w-[120px] truncate font-mono text-[11px]">{u.upstream}</span>
                 <span className="ml-auto shrink-0 tabular-nums" style={{ color: 'var(--c-text-secondary)' }}>
@@ -167,7 +187,7 @@ export function StatsPanel({ onRefreshNeeded, queryTypeDistribution }: {
       {/* ── 趋势图 ── 始终占位，防止挤动下方域名排行 ── */}
       {showCharts && stats?.history && stats.history.length > 0 ? (
         <Suspense fallback={<div className="glass-card rounded-xl p-4 sm:p-6" style={{ minHeight: '240px' }} />}>
-          <TrendChart history={stats.history} timeUnit={stats.timeSpan!.unit} />
+          <TrendChart history={st.history} />
         </Suspense>
       ) : (
         <div className="glass-card rounded-xl p-4 sm:p-6" style={{ minHeight: '240px' }}>

@@ -63,8 +63,8 @@ export function PieChartCard({ data, suffix }: {
             {hasData && (
               <Tooltip
                 contentStyle={{ background: 'var(--c-glass)', border: '1px solid var(--c-border)', borderRadius: 8, fontSize: 12 }}
-                formatter={(val: any) => {
-                  const n = typeof val === 'number' ? val : 0
+                formatter={(val: unknown) => {
+                  const n = typeof val === 'number' ? val : Number(val) || 0
                   return [`${((n / total) * 100).toFixed(1)}%`]
                 }}
               />

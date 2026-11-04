@@ -2,7 +2,8 @@
 import { act, createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { useAnalysis, type DashboardPayload } from './useAnalysis'
+import { useAnalysis, POLL_BACKOFF_MS, REFRESH_TIMEOUT_MESSAGE } from './useAnalysis'
+import type { DashboardPayload } from 'shared'
 import { installMemoryStorage } from '../test-support/memory-storage'
 
 /**
@@ -185,5 +186,90 @@ describe('C17 useAnalysis', () => {
     expect(calls).toContain('POST /api/analysis/refresh')
     expect(view!.error).toBe('刷新期间配置被改了，这一轮结果已丢弃，请重新刷新')
     expect(view!.refreshing).toBe(false)
+  })
+
+  // ---- 以下是第四批 #19 的新断言：取消、真指数退避、超时提示 ----
+
+  it('#19 卸载即取消：轮询中途卸载后不再发 summary 请求', async () => {
+    localStorage.setItem('adgh_url', 'http://adgh.local')
+    localStorage.setItem('adgh_user', 'u')
+    localStorage.setItem('adgh_pass', 'p')
+    queues.dashboard = [{ body: payload({ ready: false }) }]
+    queues.summary = [
+      { body: { ready: false, lastUpdated: STALE(), lastError: null } },  // init 判新鲜度：过期，走自动刷新
+      ...Array.from({ length: 6 }, () => ({ body: { ready: false, lastUpdated: null, lastError: null } })),
+    ]
+
+    await mount()
+    const before = calls.filter(c => c === 'GET /api/analysis/summary').length
+    expect(before).toBe(1) // 只有 init 那一次
+
+    await act(async () => { root!.unmount() })
+    root = null
+    await new Promise(r => setTimeout(r, 1400)) // 原本 1s 后会有第一次轮询
+
+    const after = calls.filter(c => c === 'GET /api/analysis/summary').length
+    expect(after, '卸载后轮询还在跑，说明没有取消').toBe(before)
+  })
+
+  it('#19 退避是真指数：相邻两次轮询的间隔按 1s → 2s 增长', async () => {
+    vi.useFakeTimers()
+    const times: number[] = []
+    const inner = globalThis.fetch
+    try {
+      ;(globalThis as unknown as { fetch: unknown }).fetch = (async (input: unknown, init?: { method?: string }) => {
+        if (String(input).includes('/api/analysis/summary')) times.push(Date.now())
+        return inner(input as RequestInfo, init as RequestInit)
+      }) as typeof fetch
+
+      container = document.createElement('div')
+      document.body.append(container)
+      root = createRoot(container)
+      await act(async () => { root!.render(createElement(Probe)) })
+      await vi.advanceTimersByTimeAsync(0)
+
+      queues.summary = Array.from({ length: 5 }, () => ({ body: { ready: false, lastUpdated: null, lastError: null } }))
+      const pending = view!.refresh()
+      // 1s + 2s + 4s = 7s：足够发生三次轮询
+      await act(async () => { await vi.advanceTimersByTimeAsync(7100) })
+
+      expect(times.length).toBeGreaterThanOrEqual(3)
+      const gap1 = times[1] - times[0]
+      const gap2 = times[2] - times[1]
+      expect(gap1, `第一段间隔 ${gap1}ms`).toBeGreaterThanOrEqual(POLL_BACKOFF_MS[0] - 100)
+      expect(gap1, `第一段间隔 ${gap1}ms`).toBeLessThan(POLL_BACKOFF_MS[0] + 100)
+      expect(gap2, `第二段间隔 ${gap2}ms`).toBeGreaterThanOrEqual(POLL_BACKOFF_MS[1] - 100)
+      expect(gap2, `第二段间隔 ${gap2}ms`).toBeLessThan(POLL_BACKOFF_MS[1] + 100)
+      expect(gap2, '退避没有增长，还是恒定值').toBeGreaterThan(gap1 * 1.5)
+
+      // 卸载能取消还在等的那一轮（否则这里会一直挂住）
+      await act(async () => { root!.unmount() })
+      root = null
+      await act(async () => { await pending })
+    } finally {
+      globalThis.fetch = inner as typeof fetch
+      vi.useRealTimers()
+    }
+  })
+
+  it('#19 轮询次数用尽后给一条可见的超时提示', async () => {
+    vi.useFakeTimers()
+    try {
+      container = document.createElement('div')
+      document.body.append(container)
+      root = createRoot(container)
+      await act(async () => { root!.render(createElement(Probe)) })
+      await vi.advanceTimersByTimeAsync(0)
+
+      queues.summary = Array.from({ length: POLL_BACKOFF_MS.length + 2 }, () => ({ body: { ready: false, lastUpdated: null, lastError: null } }))
+      const pending = view!.refresh()
+      await act(async () => { await vi.advanceTimersByTimeAsync(POLL_BACKOFF_MS.reduce((a, b) => a + b, 0) + 1000) })
+      await act(async () => { await pending })
+
+      expect(view!.error).toBe(REFRESH_TIMEOUT_MESSAGE)
+      expect(view!.refreshing).toBe(false)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

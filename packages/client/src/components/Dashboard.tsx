@@ -80,13 +80,14 @@ export function Dashboard() {
 
   return (
     <div className="mx-auto max-w-[1400px] px-4 py-6 sm:px-6 sm:py-8">
-      {/* Error banner */}
-      {error && (
+      {/* Error banner：整页错误优先，其次动作级错误（#14） */}
+      {(error ?? adguard.actionError) && (
         <div
+          role="alert"
           className="mb-5 rounded-lg border px-4 py-3 text-sm fade-in"
           style={{ borderColor: 'var(--c-danger)', background: 'oklch(0.58 0.22 27 / 0.08)', color: 'var(--c-danger)' }}
         >
-          {error}
+          {error ?? adguard.actionError}
         </div>
       )}
 
@@ -253,24 +254,24 @@ export function Dashboard() {
 
       {/* Stats Panel (实时统计数据来自 AdGuardHome) */}
       {showStatsPanel && (
-        <CollapseSection title={t('section.stats')} storageKey="collapse_stats" defaultOpen badge={
+        <CollapseSection title={t('section.stats')} storageKey="collapse_stats" defaultOpen deferUntilOpen badge={
           <span className="rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider"
             style={{ background: 'var(--c-accent-soft)', color: 'var(--c-accent)' }}>
             AdGuardHome
           </span>
         }>
-          <StatsPanel onRefreshNeeded={refresh} queryTypeDistribution={queryTypeDistribution} />
+          <StatsPanel queryTypeDistribution={queryTypeDistribution} />
         </CollapseSection>
       )}
 
       {/* Latency Chart — lazy 加载 */}
-      <CollapseSection title={t('section.latency')} storageKey="collapse_latency">
+      <CollapseSection title={t('section.latency')} storageKey="collapse_latency" deferUntilOpen>
         <div className={domains.length > 0 ? 'mb-6 fade-in-content' : 'mb-6 shimmer-bg rounded-xl p-4'} style={{ minHeight: '200px' }}>
           <Suspense fallback={<div className="glass-card rounded-xl p-4 sm:p-6">
             <div className="mb-4 h-4 w-32 rounded" style={{ background: 'var(--c-border)' }} />
             <div className="h-48 sm:h-52" style={{ background: 'var(--c-accent-soft)' }} />
           </div>}>
-            <LatencyChart domains={domains} mode="uncached" />
+            <LatencyChart domains={domains} />
           </Suspense>
         </div>
       </CollapseSection>
@@ -285,6 +286,7 @@ export function Dashboard() {
       <ManagementDialog
         open={showManagement}
         onClose={() => setShowManagement(false)}
+        adguard={adguard}
       />
 
       <SettingsDialog

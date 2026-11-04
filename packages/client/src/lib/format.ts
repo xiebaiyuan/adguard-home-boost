@@ -1,4 +1,4 @@
-import type { DomainStats } from './types'
+import type { DomainStats } from 'shared'
 
 export function fmtMs(n: number): string {
   return `${Math.round(n)}ms`

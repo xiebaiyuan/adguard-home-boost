@@ -1,7 +1,11 @@
 import { useMemo } from 'react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
-import type { DomainStats } from '../lib/types'
+import type { DomainStats } from 'shared'
 import { useI18n } from '../lib/i18n'
+
+/** Tooltip 只用到 value，用窄类型替掉原来的 any */
+interface TooltipItem { value?: number | string }
+interface ChartTooltipProps { active?: boolean; payload?: TooltipItem[]; label?: string | number }
 
 interface Bin {
   range: string
@@ -36,7 +40,6 @@ const HEAT_COLORS = [
 
 interface LatencyChartProps {
   domains: DomainStats[]
-  mode: 'all' | 'uncached'
 }
 
 export function LatencyChart({ domains }: LatencyChartProps) {
@@ -55,9 +58,9 @@ export function LatencyChart({ domains }: LatencyChartProps) {
     )
   }
 
-  const ChartTooltip = ({ active, payload, label }: any) => {
+  const ChartTooltip = ({ active, payload, label }: ChartTooltipProps) => {
     if (!active || !payload?.length) return null
-    const count = payload[0].value as number
+    const count = typeof payload[0].value === 'number' ? payload[0].value : Number(payload[0].value) || 0
     const pct = total > 0 ? ((count / total) * 100).toFixed(1) : '0'
     return (
       <div className="glass-card rounded-lg px-3 py-2 text-xs shadow-lg">

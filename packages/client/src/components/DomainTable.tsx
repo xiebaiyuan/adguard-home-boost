@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useCallback, useDeferredValue, memo } from 'react'
+import type { CSSProperties } from 'react'
 import { MagnifyingGlass, ArrowDown, ArrowUp, CaretDown, CaretUp, Download } from '@phosphor-icons/react'
-import type { DomainStats } from '../lib/types'
+import type { DomainStats } from 'shared'
 import { exportDomainCsv } from '../lib/csv'
 import { fmtMs, fmtPct, fmtCount, filterAndSortDomains } from '../lib/format'
 import type { SortKey } from '../lib/format'
@@ -8,15 +9,53 @@ import { useI18n } from '../lib/i18n'
 
 interface DomainTableProps {
   domains: DomainStats[]
-  onExpand?: (domain: string) => void
 }
 
-const cell = 'px-3 py-2.5 text-xs tabular-nums whitespace-nowrap'
-const headerCell = `${cell} cursor-pointer select-none font-medium text-xs uppercase tracking-wider press-effect-soft`
+/** #16 首屏与每次「加载更多」渲染的行数 */
+export const ROWS_PER_PAGE = 100
 
-const slowStyle = (v: number) => ({
-  color: v > 1000 ? 'var(--c-danger)' : v > 500 ? 'var(--c-warning)' : 'inherit',
-})
+const cell = 'px-3 py-2.5 text-xs tabular-nums whitespace-nowrap'
+const headerCell = `${cell} font-medium text-xs uppercase tracking-wider`
+
+/**
+ * #16 模块级样式常量。
+ * 原来每行要新建 12 个字面量对象（slowStyle 一行就 5 个），500 行一次全表重渲染约 6000 个对象。
+ * 现在全部复用同一批引用，行内不再分配。
+ */
+const STYLE_BORDER_BOTTOM: CSSProperties = { borderBottom: '1px solid var(--c-border)' }
+const STYLE_MUTED: CSSProperties = { color: 'var(--c-text-secondary)' }
+const STYLE_DANGER: CSSProperties = { color: 'var(--c-danger)' }
+const STYLE_WARNING: CSSProperties = { color: 'var(--c-warning)' }
+const STYLE_INHERIT: CSSProperties = { color: 'inherit' }
+const STYLE_CACHE_OK: CSSProperties = { color: 'var(--c-success)' }
+const STYLE_CACHE_WARN: CSSProperties = { color: 'var(--c-warning)' }
+const STYLE_DANGER_PILL: CSSProperties = { background: 'oklch(0.58 0.22 27 / 0.12)' }
+const STYLE_ACCENT_SOFT: CSSProperties = { background: 'var(--c-accent-soft)', color: 'var(--c-accent)' }
+const STYLE_ACCENT_SOLID: CSSProperties = { background: 'var(--c-accent)', color: '#fff' }
+
+/** 延时着色：>1s 红、>500ms 黄，其余继承。返回模块级常量，不新建对象 */
+function slowStyle(v: number): CSSProperties {
+  return v > 1000 ? STYLE_DANGER : v > 500 ? STYLE_WARNING : STYLE_INHERIT
+}
+
+/** #33 表头排序按钮：整格可点改成真按钮，键盘可聚焦、回车/空格可触发；状态由 aria-sort 表达 */
+function SortHeader({ label, column, sortKey, sortDesc, onSort }: {
+  label: string
+  column: SortKey
+  sortKey: SortKey
+  sortDesc: boolean
+  onSort: (key: SortKey) => void
+}) {
+  const active = sortKey === column
+  return (
+    <th className={cell} aria-sort={active ? (sortDesc ? 'descending' : 'ascending') : 'none'}>
+      <button type="button" className={`${headerCell} th-sort`} onClick={() => onSort(column)}>
+        <span>{label}</span>
+        {active && (sortDesc ? <ArrowDown size={12} /> : <ArrowUp size={12} />)}
+      </button>
+    </th>
+  )
+}
 
 export function DomainTable({ domains }: DomainTableProps) {
   const { t } = useI18n()
@@ -33,7 +72,15 @@ export function DomainTable({ domains }: DomainTableProps) {
     filterAndSortDomains(domains, deferredSearch, typeFilter, sortKey, sortDesc),
   [domains, deferredSearch, sortKey, sortDesc, typeFilter])
 
+  // #16 分批渲染：首屏只渲染 ROWS_PER_PAGE 行，其余按批加载。
+  // 「回到第一页」放在改过滤/排序的事件里做（不在 effect 里 setState），数据变少时靠下面的 clamp 兜住。
+  const [visibleCount, setVisibleCount] = useState(ROWS_PER_PAGE)
+  const shownCount = Math.min(visibleCount, sorted.length)
+  const rows = useMemo(() => sorted.slice(0, shownCount), [sorted, shownCount])
+  const hasMore = shownCount < sorted.length
+
   const toggleSort = (key: SortKey) => {
+    setVisibleCount(ROWS_PER_PAGE)
     if (sortKey === key) {
       setSortDesc(!sortDesc)
     } else {
@@ -50,11 +97,6 @@ export function DomainTable({ domains }: DomainTableProps) {
       return next
     })
   }, [])
-
-  const sortArrow = (key: SortKey) => {
-    if (sortKey !== key) return null
-    return sortDesc ? <ArrowDown size={12} /> : <ArrowUp size={12} />
-  }
 
   // Collect all query types across domains
   const allTypes = useMemo(() => {
@@ -81,7 +123,8 @@ export function DomainTable({ domains }: DomainTableProps) {
         <div className="flex items-center gap-2">
           <select
             value={typeFilter}
-            onChange={e => setTypeFilter(e.target.value)}
+            onChange={e => { setTypeFilter(e.target.value); setVisibleCount(ROWS_PER_PAGE) }}
+            aria-label={t('domain.allTypes')}
             className="rounded-lg border px-2 py-1.5 text-xs outline-none transition-colors"
             style={{ borderColor: 'var(--c-border)', background: 'var(--c-glass)', color: 'var(--c-text)' }}
           >
@@ -93,9 +136,10 @@ export function DomainTable({ domains }: DomainTableProps) {
             <MagnifyingGlass size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--c-text-secondary)' }} />
             <input
               type="text"
+              aria-label={t('domain.search')}
               placeholder={t('domain.search')}
               value={search}
-              onChange={e => setSearch(e.target.value)}
+              onChange={e => { setSearch(e.target.value); setVisibleCount(ROWS_PER_PAGE) }}
               className="w-40 rounded-lg border py-1.5 pl-8 pr-3 text-xs outline-none transition-all focus:w-56"
               style={{
                 borderColor: 'var(--c-border)',
@@ -111,40 +155,24 @@ export function DomainTable({ domains }: DomainTableProps) {
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
-            <tr style={{ borderBottom: '1px solid var(--c-border)' }}>
+            <tr style={STYLE_BORDER_BOTTOM}>
               <th className={cell}></th>
-              <th className={headerCell} onClick={() => toggleSort('domain')}>
-                <span className="inline-flex items-center gap-1">{t('table.domain')} {sortArrow('domain')}</span>
-              </th>
+              <SortHeader label={t('table.domain')} column="domain" sortKey={sortKey} sortDesc={sortDesc} onSort={toggleSort} />
               <th className={cell}>{t('table.type')}</th>
-              <th className={headerCell} onClick={() => toggleSort('totalCount')}>
-                <span className="inline-flex items-center gap-1">{t('table.count')} {sortArrow('totalCount')}</span>
-              </th>
+              <SortHeader label={t('table.count')} column="totalCount" sortKey={sortKey} sortDesc={sortDesc} onSort={toggleSort} />
               <th className={cell}>{t('table.cacheRate')}</th>
-              <th className={headerCell} onClick={() => toggleSort('blockedCount')}>
-                <span className="inline-flex items-center gap-1">{t('table.blocked')} {sortArrow('blockedCount')}</span>
-              </th>
-              <th className={headerCell} onClick={() => toggleSort('p50')}>
-                <span className="inline-flex items-center gap-1">P50 {sortArrow('p50')}</span>
-              </th>
-              <th className={headerCell} onClick={() => toggleSort('p60')}>
-                <span className="inline-flex items-center gap-1">P60 {sortArrow('p60')}</span>
-              </th>
-              <th className={headerCell} onClick={() => toggleSort('p70')}>
-                <span className="inline-flex items-center gap-1">P70 {sortArrow('p70')}</span>
-              </th>
-              <th className={headerCell} onClick={() => toggleSort('p95')}>
-                <span className="inline-flex items-center gap-1">P95 {sortArrow('p95')}</span>
-              </th>
-              <th className={cell}>P99</th>
-              <th className={headerCell} onClick={() => toggleSort('slowRate')}>
-                <span className="inline-flex items-center gap-1">{t('table.slowQuery')} {sortArrow('slowRate')}</span>
-              </th>
-              <th className={cell}>MAX</th>
+              <SortHeader label={t('table.blocked')} column="blockedCount" sortKey={sortKey} sortDesc={sortDesc} onSort={toggleSort} />
+              <SortHeader label={t('table.p50')} column="p50" sortKey={sortKey} sortDesc={sortDesc} onSort={toggleSort} />
+              <SortHeader label={t('table.p60')} column="p60" sortKey={sortKey} sortDesc={sortDesc} onSort={toggleSort} />
+              <SortHeader label={t('table.p70')} column="p70" sortKey={sortKey} sortDesc={sortDesc} onSort={toggleSort} />
+              <SortHeader label={t('table.p95')} column="p95" sortKey={sortKey} sortDesc={sortDesc} onSort={toggleSort} />
+              <th className={cell}>{t('table.p99')}</th>
+              <SortHeader label={t('table.slowQuery')} column="slowRate" sortKey={sortKey} sortDesc={sortDesc} onSort={toggleSort} />
+              <th className={cell}>{t('table.max')}</th>
             </tr>
           </thead>
           <tbody>
-            {sorted.map((d) => (
+            {rows.map((d) => (
               <TableRow
                 key={d.domain}
                 stats={d}
@@ -152,9 +180,23 @@ export function DomainTable({ domains }: DomainTableProps) {
                 onToggle={toggleExpand}
               />
             ))}
+            {hasMore && (
+              <tr>
+                <td colSpan={13} className="py-3 text-center">
+                  <button
+                    type="button"
+                    onClick={() => setVisibleCount(shownCount + ROWS_PER_PAGE)}
+                    className="cursor-pointer rounded-lg px-3 py-1.5 text-xs font-medium press-effect transition-opacity hover:opacity-80"
+                    style={STYLE_ACCENT_SOFT}
+                  >
+                    {t('domain.loadMore')} · {rows.length}/{sorted.length}
+                  </button>
+                </td>
+              </tr>
+            )}
             {sorted.length === 0 && (
               <tr>
-                <td colSpan={13} className="py-12 text-center text-xs" style={{ color: 'var(--c-text-secondary)' }}>
+                <td colSpan={13} className="py-12 text-center text-xs" style={STYLE_MUTED}>
                   {search ? `${t('domain.noMatch')} "${search}"` : t('domain.noData')}
                 </td>
               </tr>
@@ -246,7 +288,7 @@ function ExpandedDetail({ domain, topClients, topBlockRules }: { domain: string;
                   URL.revokeObjectURL(url)
                 }}
                 className="inline-flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-xs transition-colors hover:opacity-80"
-                style={{ background: 'var(--c-accent)', color: '#fff' }}
+                style={STYLE_ACCENT_SOLID}
               >
                 <Download size={12} />
                 {t('domain.export')}
@@ -374,7 +416,7 @@ const TableRow = memo(function TableRow({
     <>
       <tr
         className="cursor-pointer table-row-hover"
-        style={{ borderBottom: '1px solid var(--c-border)' }}
+        style={STYLE_BORDER_BOTTOM}
         onClick={() => onToggle(d.domain)}
       >
         <td className={cell}>
@@ -384,7 +426,7 @@ const TableRow = memo(function TableRow({
           {d.domain}
         </td>
         <td className={cell}>
-          <span className="text-xs" style={{ color: 'var(--c-text-secondary)' }}>
+          <span className="text-xs" style={STYLE_MUTED}>
             {Object.entries(d.queryTypes)
               .sort(([, a], [, b]) => b - a)
               .slice(0, 3)
@@ -394,21 +436,20 @@ const TableRow = memo(function TableRow({
         </td>
         <td className={cell}>{fmtCount(d.totalCount)}</td>
         <td className={cell}>
-          <span style={{ color: d.cacheHitRate > 0.8 ? 'var(--c-success)' : 'var(--c-warning)' }}>
+          <span style={d.cacheHitRate > 0.8 ? STYLE_CACHE_OK : STYLE_CACHE_WARN}>
             {fmtPct(d.cacheHitRate)}
           </span>
         </td>
         <td className={cell}>
           {d.blockedCount > 0 ? (
-            <span className="inline-flex items-center gap-1" style={{ color: 'var(--c-danger)' }}>
-              <span className="rounded-sm px-1.5 py-0.5 text-[11px] font-medium"
-                style={{ background: 'oklch(0.58 0.22 27 / 0.12)' }}>
+            <span className="inline-flex items-center gap-1" style={STYLE_DANGER}>
+              <span className="rounded-sm px-1.5 py-0.5 text-[11px] font-medium" style={STYLE_DANGER_PILL}>
                 {fmtCount(d.blockedCount)}
               </span>
               <span className="text-[10px]">{fmtPct(d.blockedRate)}</span>
             </span>
           ) : (
-            <span className="text-xs" style={{ color: 'var(--c-text-secondary)' }}>{fmtCount(0)}</span>
+            <span className="text-xs" style={STYLE_MUTED}>{fmtCount(0)}</span>
           )}
         </td>
         <td className={cell}>{fmtMs(d.uncached.p50)}</td>
@@ -417,7 +458,7 @@ const TableRow = memo(function TableRow({
         <td className={cell} style={slowStyle(d.uncached.p95)}>{fmtMs(d.uncached.p95)}</td>
         <td className={cell} style={slowStyle(d.uncached.p99)}>{fmtMs(d.uncached.p99)}</td>
         <td className={cell}>
-          <span style={{ color: d.uncached.slowRate > 0.3 ? 'var(--c-danger)' : d.uncached.slowRate > 0.1 ? 'var(--c-warning)' : 'inherit' }}>
+          <span style={d.uncached.slowRate > 0.3 ? STYLE_DANGER : d.uncached.slowRate > 0.1 ? STYLE_WARNING : STYLE_INHERIT}>
             {fmtPct(d.uncached.slowRate)}
           </span>
         </td>

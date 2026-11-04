@@ -1,4 +1,4 @@
-import type { DomainStats } from './types'
+import type { DomainStats } from 'shared'
 
 export interface RawEntry {
   time: string

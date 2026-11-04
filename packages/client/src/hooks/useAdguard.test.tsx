@@ -152,31 +152,42 @@ describe('C17 useAdguard', () => {
     expect(view!.error).toBeNull()
   })
 
-  it('动作失败有反馈：toggleProtection 失败时要么抛错要么暴露 error，且不卡在 saving', async () => {
+  it('动作失败有反馈：#14 的 actionError 拿到错误、saving 复位、乐观更新回滚', async () => {
     state.protectionPostStatus = 500
     await mount()
+    expect(view!.status?.protectionEnabled).toBe(true)
 
     let outcome: unknown = 'pending'
     await act(async () => {
       outcome = await view!.toggleProtection(false).then(() => 'resolved', (e: unknown) => e)
     })
 
-    // 兼容两种修法：抛给调用方，或自己吞掉并写进 error。两者都没有才算「没反馈」
-    const hasFeedback = outcome instanceof Error || view!.error != null
-    expect(hasFeedback, '动作失败既没抛错也没写 error').toBe(true)
+    // #14：hook 内统一 catch，失败进 actionError（不再只剩一条 unhandled rejection）
+    expect(view!.actionError, '动作失败没有可显示的反馈').toBe('API error 500')
+    expect(outcome).not.toBeInstanceOf(Error) // 已经内部消化，调用点不再需要 try/catch
     expect(view!.saving).toBeNull()
+    // 乐观更新在失败后翻回去，UI 不再显示已切换的假状态
+    expect(view!.status?.protectionEnabled).toBe(true)
   })
 
-  it('无返回值的动作失败也让 saving 复位（clearCache）', async () => {
+  it('无返回值的动作失败也让 saving 复位并给出 actionError（clearCache）', async () => {
     state.cacheClearStatus = 500
     await mount()
 
-    let outcome: unknown = 'pending'
-    await act(async () => {
-      outcome = await view!.clearCache().then(() => 'resolved', (e: unknown) => e)
-    })
+    await act(async () => { await view!.clearCache() })
 
-    expect(outcome instanceof Error || view!.error != null).toBe(true)
+    expect(view!.actionError).toBe('API error 500')
     expect(view!.saving).toBeNull()
+  })
+
+  it('#14 成功的动作会把上一次的 actionError 清掉', async () => {
+    state.cacheClearStatus = 500
+    await mount()
+    await act(async () => { await view!.clearCache() })
+    expect(view!.actionError).toBe('API error 500')
+
+    state.cacheClearStatus = 200
+    await act(async () => { await view!.clearCache() })
+    expect(view!.actionError).toBeNull()
   })
 })

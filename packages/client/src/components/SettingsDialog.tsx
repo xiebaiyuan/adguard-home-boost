@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Gear, X, Trash } from '@phosphor-icons/react'
 import { TIME_OPTIONS } from '../lib/format'
+import { useI18n } from '../lib/i18n'
+import { useModalDialog } from '../hooks/useModalDialog'
 
 const API_BASE = ''
 
@@ -29,13 +31,15 @@ function saveProfiles(profiles: Profile[]) {
 }
 
 export function SettingsDialog({ open, onClose, onConfigured }: SettingsDialogProps) {
+  const { t } = useI18n()
+  const panelRef = useModalDialog({ open, onClose })
   const [profiles, setProfiles] = useState<Profile[]>(loadProfiles)
   const [selectedName, setSelectedName] = useState<string>('')
   const [name, setName] = useState(() => {
     const n = localStorage.getItem('adgh_profile_name')
     if (n) return n
     const url = localStorage.getItem('adgh_url') ?? ''
-    return url.replace(/^https?:\/\//, '').split('/')[0] || '默认'
+    return url.replace(/^https?:\/\//, '').split('/')[0] || t('dialog.config.defaultProfile')
   })
   const [url, setUrl] = useState(() => localStorage.getItem('adgh_url') ?? '')
   const [user, setUser] = useState(() => localStorage.getItem('adgh_user') ?? '')
@@ -65,11 +69,11 @@ export function SettingsDialog({ open, onClose, onConfigured }: SettingsDialogPr
 
   const handleSave = async () => {
     if (!url || !user || !pass) {
-      setError('请填写所有字段')
+      setError(t('dialog.config.errFields'))
       return
     }
     if (!name.trim()) {
-      setError('请输入配置名称')
+      setError(t('dialog.config.errName'))
       return
     }
 
@@ -96,7 +100,7 @@ export function SettingsDialog({ open, onClose, onConfigured }: SettingsDialogPr
         }),
       })
 
-      if (!res.ok) throw new Error(`配置失败: ${res.status}`)
+      if (!res.ok) throw new Error(`${t('dialog.config.errConfig')}: ${res.status}`)
 
       localStorage.setItem('adgh_url', url)
       localStorage.setItem('adgh_user', user)
@@ -118,7 +122,7 @@ export function SettingsDialog({ open, onClose, onConfigured }: SettingsDialogPr
       onConfigured()
       onClose()
     } catch (e) {
-      setError(e instanceof Error ? e.message : '保存失败')
+      setError(e instanceof Error ? e.message : t('dialog.config.errSave'))
     } finally {
       setSaving(false)
     }
@@ -133,16 +137,22 @@ export function SettingsDialog({ open, onClose, onConfigured }: SettingsDialogPr
       onClick={onClose}
     >
       <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="settings-dialog-title"
         className="glass-card w-full max-w-sm rounded-2xl p-6 shadow-xl"
         onClick={e => e.stopPropagation()}
       >
         <div className="mb-5 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Gear size={16} style={{ color: 'var(--c-accent)' }} />
-            <span className="text-sm font-medium">AdGuardHome 配置</span>
+            <span id="settings-dialog-title" className="text-sm font-medium">{t('dialog.config.title')}</span>
           </div>
           <button
+            type="button"
             onClick={onClose}
+            aria-label={t('dialog.close')}
             className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg press-effect transition-colors hover:opacity-60"
             style={{ color: 'var(--c-text-secondary)' }}
           >
@@ -154,7 +164,7 @@ export function SettingsDialog({ open, onClose, onConfigured }: SettingsDialogPr
           {profiles.length > 0 && (
             <div>
               <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--c-text-secondary)' }}>
-                已有配置
+                {t('dialog.config.existing')}
               </label>
               <div className="space-y-1">
                 {profiles.map(p => (
@@ -166,6 +176,7 @@ export function SettingsDialog({ open, onClose, onConfigured }: SettingsDialogPr
                     }}
                   >
                     <button
+                      type="button"
                       onClick={() => handleSelectProfile(p)}
                       className="flex-1 cursor-pointer text-left outline-none"
                       style={{ color: 'var(--c-text)' }}
@@ -174,7 +185,9 @@ export function SettingsDialog({ open, onClose, onConfigured }: SettingsDialogPr
                       <span className="ml-2 text-[11px]" style={{ color: 'var(--c-text-secondary)' }}>{p.url}</span>
                     </button>
                     <button
+                      type="button"
                       onClick={() => handleDeleteProfile(p.name)}
+                      aria-label={`${p.name}: ${t('dialog.deleteProfile')}`}
                       className="flex shrink-0 cursor-pointer items-center p-1 transition-colors hover:opacity-60"
                       style={{ color: 'var(--c-text-secondary)' }}
                     >
@@ -187,35 +200,38 @@ export function SettingsDialog({ open, onClose, onConfigured }: SettingsDialogPr
           )}
 
           <div>
-            <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--c-text-secondary)' }}>
-              配置名称
+            <label htmlFor="settings-name" className="mb-1 block text-xs font-medium" style={{ color: 'var(--c-text-secondary)' }}>
+              {t('dialog.config.nameLabel')}
             </label>
             <input
+              id="settings-name"
               value={name}
               onChange={e => setName(e.target.value)}
-              placeholder="例如：路由器、办公室"
+              placeholder={t('dialog.config.namePlaceholder')}
               className="w-full rounded-lg border px-3 py-2 text-sm outline-none"
               style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)', color: 'var(--c-text)' }}
             />
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--c-text-secondary)' }}>
-              AdGuardHome 地址
+            <label htmlFor="settings-url" className="mb-1 block text-xs font-medium" style={{ color: 'var(--c-text-secondary)' }}>
+              {t('dialog.config.urlLabel')}
             </label>
             <input
+              id="settings-url"
               value={url}
               onChange={e => setUrl(e.target.value)}
-              placeholder="http://192.168.1.100"
+              placeholder={t('dialog.config.urlPlaceholder')}
               className="w-full rounded-lg border px-3 py-2 text-sm outline-none transition-colors"
               style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)', color: 'var(--c-text)' }}
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--c-text-secondary)' }}>
-              用户名
+            <label htmlFor="settings-user" className="mb-1 block text-xs font-medium" style={{ color: 'var(--c-text-secondary)' }}>
+              {t('dialog.config.userLabel')}
             </label>
             <input
+              id="settings-user"
               value={user}
               onChange={e => setUser(e.target.value)}
               className="w-full rounded-lg border px-3 py-2 text-sm outline-none"
@@ -223,10 +239,11 @@ export function SettingsDialog({ open, onClose, onConfigured }: SettingsDialogPr
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--c-text-secondary)' }}>
-              密码
+            <label htmlFor="settings-pass" className="mb-1 block text-xs font-medium" style={{ color: 'var(--c-text-secondary)' }}>
+              {t('dialog.config.passLabel')}
             </label>
             <input
+              id="settings-pass"
               type="password"
               value={pass}
               onChange={e => setPass(e.target.value)}
@@ -235,10 +252,11 @@ export function SettingsDialog({ open, onClose, onConfigured }: SettingsDialogPr
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--c-text-secondary)' }}>
-              分析时间范围
+            <label htmlFor="settings-range" className="mb-1 block text-xs font-medium" style={{ color: 'var(--c-text-secondary)' }}>
+              {t('dialog.config.rangeLabel')}
             </label>
             <select
+              id="settings-range"
               value={timeHours}
               onChange={e => setTimeHours(parseInt(e.target.value, 10))}
               className="w-full rounded-lg border px-3 py-2 text-sm outline-none"
@@ -251,18 +269,19 @@ export function SettingsDialog({ open, onClose, onConfigured }: SettingsDialogPr
           </div>
 
           {error && (
-            <div className="rounded-lg px-3 py-2 text-xs" style={{ background: 'oklch(0.58 0.22 27 / 0.1)', color: 'var(--c-danger)' }}>
+            <div role="alert" className="rounded-lg px-3 py-2 text-xs" style={{ background: 'oklch(0.58 0.22 27 / 0.1)', color: 'var(--c-danger)' }}>
               {error}
             </div>
           )}
 
           <button
+            type="button"
             onClick={handleSave}
             disabled={saving}
             className="w-full cursor-pointer rounded-lg py-2 text-sm font-medium text-white press-effect transition-opacity disabled:opacity-60"
             style={{ background: 'var(--c-accent-gradient)', border: 'none' }}
           >
-            {saving ? '保存中...' : '保存并连接'}
+            {saving ? t('dialog.saving') : t('dialog.config.save')}
           </button>
         </div>
       </div>

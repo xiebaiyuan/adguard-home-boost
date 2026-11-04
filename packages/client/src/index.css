@@ -191,3 +191,22 @@ textarea:focus-visible {
   background: var(--c-border);
   border-radius: 3px;
 }
+
+/* #17 折叠区块保留挂载：折叠态让浏览器跳过子树的样式/布局/绘制，但不卸载组件 */
+.collapse-body[data-collapsed='true'] {
+  content-visibility: hidden;
+}
+
+/* #33 表头里的排序按钮：整格可点改成真正的按钮，键盘可聚焦、可回车/空格触发 */
+.th-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  cursor: pointer;
+  user-select: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+}

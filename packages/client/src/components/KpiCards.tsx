@@ -1,4 +1,4 @@
-import type { LatencyStats } from '../lib/types'
+import type { LatencyStats } from 'shared'
 import { useI18n } from '../lib/i18n'
 
 interface KpiCardProps {

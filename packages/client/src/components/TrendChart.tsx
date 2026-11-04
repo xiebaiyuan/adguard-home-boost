@@ -21,6 +21,20 @@ function computeDateLabels(length: number): string[] {
   return labels
 }
 
+/** Tooltip 只用到这几个字段，用窄类型替掉原来的 any */
+interface TooltipItem { dataKey?: string | number; value?: number | string }
+interface ChartTooltipProps { active?: boolean; payload?: TooltipItem[]; label?: string | number }
+
+function pick(items: TooltipItem[], key: string): number | string | undefined {
+  return items.find(p => p.dataKey === key)?.value
+}
+
+function num(v: number | string | undefined): number {
+  if (typeof v === 'number') return v
+  if (typeof v === 'string') return Number(v) || 0
+  return 0
+}
+
 /** 简单移动平均 */
 function sma(values: number[], window: number): (number | null)[] {
   const result: (number | null)[] = []
@@ -34,13 +48,13 @@ function sma(values: number[], window: number): (number | null)[] {
 }
 
 /** 自定义 Tooltip：显示查询、屏蔽、屏蔽率、均线 */
-function ChartTooltip({ active, payload, label }: any) {
+function ChartTooltip({ active, payload, label }: ChartTooltipProps) {
   const { t } = useI18n()
   if (!active || !payload?.length) return null
-  const queries = payload.find((p: any) => p.dataKey === 'queries')?.value ?? 0
-  const blocked = payload.find((p: any) => p.dataKey === 'blocked')?.value ?? 0
-  const rate = payload.find((p: any) => p.dataKey === 'blockedRate')?.value ?? 0
-  const smaVal = payload.find((p: any) => p.dataKey === 'sma')?.value
+  const queries = num(pick(payload, 'queries'))
+  const blocked = num(pick(payload, 'blocked'))
+  const rate = num(pick(payload, 'blockedRate'))
+  const smaVal = pick(payload, 'sma')
 
   return (
     <div className="glass-card rounded-lg px-3 py-2 text-xs shadow-lg" style={{ minWidth: 140 }}>
@@ -73,7 +87,6 @@ function ChartTooltip({ active, payload, label }: any) {
 
 interface TrendChartProps {
   history: Array<{ queries: number; blocked: number }>
-  timeUnit: string
 }
 
 export function TrendChart({ history }: TrendChartProps) {
