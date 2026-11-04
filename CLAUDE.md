@@ -59,7 +59,7 @@ npm run release   # scripts/release.mjs; --check validates without tagging
 - `packages/client/package.json` 的 `version` 字段是唯一版本来源，构建时通过 Vite `define` 注入为 `__APP_VERSION__`
 - 发版流程：`npm version <patch|minor|major> -w @adgh/dashboard` → `git add packages/client/package.json` → `git commit` → `npm run release`（自动读取 version 打 tag 并推送）
 - 禁止手动 `git tag` 不打版本号，或打了 tag 不更新 package.json
-- 当前版本：`3.0.0`
+- 当前版本：`3.0.1`
 
 ## Workflow
 
