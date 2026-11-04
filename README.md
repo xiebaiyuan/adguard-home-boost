@@ -51,6 +51,46 @@ Every route asks for them, including `/api/health` and the static files. Leave t
 out and the container stops right away: the image sets `HOST=0.0.0.0`, and without
 credentials the app accepts a loopback bind address only.
 
+### First run: there are two different accounts
+
+They are not interchangeable, and mixing them up is the usual reason someone sees an
+empty dashboard.
+
+| Account | Variables | What it is for | If it is missing |
+|---|---|---|---|
+| This panel | `ADGH_AUTH_USER` / `ADGH_AUTH_PASSWD` | The browser's Basic-auth prompt. Every route needs it. | The container exits immediately |
+| AdGuardHome | `ADGH_USER` / `ADGH_PASSWD` | The account the panel uses to read AdGuardHome's own query log | The panel opens but shows nothing: KPI dashes, empty table |
+
+Generate the panel password instead of inventing one, and put everything in the `.env`
+file next to `docker-compose.yml` — that is the file the compose file reads:
+
+```bash
+openssl rand -base64 24 | tr -d '/+=' | cut -c1-32
+```
+
+```bash
+cd /path/to/adguard-home-boost
+cat >> .env <<'EOF'
+ADGH_AUTH_USER=admin
+ADGH_AUTH_PASSWD=<the generated string>
+ADGH_URL=http://192.168.1.10
+ADGH_USER=<your AdGuardHome username>
+ADGH_PASSWD=<your AdGuardHome password>
+EOF
+docker compose up -d
+```
+
+On first open the browser asks for `ADGH_AUTH_USER` / `ADGH_AUTH_PASSWD`. If someone
+else deployed it and you do not know the password, read it from the same file:
+
+```bash
+grep -E '^ADGH_AUTH_' .env
+```
+
+The AdGuardHome account can also be entered in the panel's settings dialog instead of
+`.env`. That copy lives in memory only and is gone after a container restart; `.env`
+is the persistent way.
+
 ---
 
 ## ⚠️ Upgrading from an earlier release (breaking change)

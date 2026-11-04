@@ -48,6 +48,44 @@ docker run -d --name adguard-home-boost \
 `/api/health` 全都要过这一层。不传这两项容器会立刻停：镜像内置 `HOST=0.0.0.0`，而没配
 凭据时只接受回环监听地址。
 
+### 第一次运行：这是两套凭据，别混
+
+它们不能互换，混用是「面板打开了但什么数据都没有」最常见的原因。
+
+| 账号 | 变量 | 用途 | 缺了会怎样 |
+|---|---|---|---|
+| 本面板 | `ADGH_AUTH_USER` / `ADGH_AUTH_PASSWD` | 浏览器弹的那个登录框，所有路由都要它 | 容器直接退出 |
+| AdGuardHome | `ADGH_USER` / `ADGH_PASSWD` | 面板去读 AdGuardHome 查询日志时用的账号，是那台 AdGuardHome 自己的登录 | 面板能打开但没数据：KPI 是 `--`、表格空 |
+
+面板密码不要手编，生成一个，然后和 AdGuardHome 的账号一起写进
+`docker-compose.yml` 同目录的 `.env`（compose 读的就是它）：
+
+```bash
+openssl rand -base64 24 | tr -d '/+=' | cut -c1-32
+```
+
+```bash
+cd /path/to/adguard-home-boost
+cat >> .env <<'EOF'
+ADGH_AUTH_USER=admin
+ADGH_AUTH_PASSWD=<上面生成的那串>
+ADGH_URL=http://192.168.1.10
+ADGH_USER=<你 AdGuardHome 的用户名>
+ADGH_PASSWD=<你 AdGuardHome 的密码>
+EOF
+docker compose up -d
+```
+
+第一次打开时浏览器会弹框，输 `ADGH_AUTH_USER` / `ADGH_AUTH_PASSWD`。如果是别人部署的、
+你不知道密码，从同一个文件里读：
+
+```bash
+grep -E '^ADGH_AUTH_' .env
+```
+
+AdGuardHome 那组账号也可以不写 `.env`，改成在面板的设置对话框里填。但那样只存在内存里，
+容器一重启就没了；要持久就写 `.env`。
+
 ---
 
 ## ⚠️ 升级必读（破坏性变更）
