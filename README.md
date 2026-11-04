@@ -4,7 +4,7 @@
 
 **The better dashboard for your AdGuard Home** — Analyze DNS latency, monitor traffic in real time, and manage your DNS settings — all in one place.
 
-[![Release](https://img.shields.io/github/v/release/xiebaiyuan/adguard-home-boost)](https://github.com/xiebaiyuan/adguard-home-boost/releases) ![License](https://img.shields.io/badge/License-MIT-yellow.svg) ![Node](https://img.shields.io/badge/node-%3E%3D18-brightgreen) [![Docker](https://img.shields.io/badge/Docker-ready-2496ed?logo=docker)](https://hub.docker.com/repository/docker/xiebaiyuan/adguard-home-boost) ![Platform](https://img.shields.io/badge/Platform-macOS%20|%20Linux-blue) ![Built with](https://img.shields.io/badge/Built%20with-Vite%20|%20React%20|%20Fastify-blue)
+[![Release](https://img.shields.io/github/v/release/xiebaiyuan/adguard-home-boost)](https://github.com/xiebaiyuan/adguard-home-boost/releases) ![License](https://img.shields.io/badge/License-MIT-yellow.svg) ![Node](https://img.shields.io/badge/node-%3E%3D20.19-brightgreen) [![Docker](https://img.shields.io/badge/Docker-ready-2496ed?logo=docker)](https://hub.docker.com/repository/docker/xiebaiyuan/adguard-home-boost) ![Platform](https://img.shields.io/badge/Platform-macOS%20|%20Linux-blue) ![Built with](https://img.shields.io/badge/Built%20with-Vite%20|%20React%20|%20Fastify-blue)
 
 ---
 
@@ -18,6 +18,8 @@
 ---
 
 ## 🚀 Quick Start
+
+`engines` in `package.json` requires `^20.19.0 || >=22.12.0`; the Docker image and CI both run Node 22.
 
 ```bash
 git clone https://github.com/xiebaiyuan/adguard-home-boost.git
@@ -149,14 +151,15 @@ Click any domain row to expand a detailed view:
 │  Browser SPA  │────▶│ Fastify API  │────▶│ AdGuardHome API  │
 │ (Vite+React) │◀────│ + Analysis   │◀────│ /control/querylog│
 └─────────────┘     └─────────────┘     └──────────────────┘
-                         │ Cached
-                    ┌────▼────────┐
-                    │  5-min TTL   │
-                    └─────────────┘
+                         │ in-memory
+                    ┌────▼──────────────────┐
+                    │ until config change   │
+                    │ or manual refresh     │
+                    └───────────────────────┘
 ```
 
 **Frontend:** Vite + React + Tailwind v4 + Recharts + Phosphor Icons  
-**Backend:** Fastify + TypeScript, 8 API endpoints, in-memory cache with 5-minute TTL
+**Backend:** Fastify + TypeScript, 9 API endpoints in production (one more debug endpoint outside production), analysis cached in memory and invalidated on config change or manual refresh
 
 ---
 
@@ -167,11 +170,14 @@ Click any domain row to expand a detailed view:
 | `ADGH_URL` | Your AdGuard Home address | — |
 | `ADGH_USER` | Admin username | — |
 | `ADGH_PASSWD` | Admin password | — |
-| `ADGH_SKIP_VERIFY` | Skip SSL certificate verification | `false` |
+| `ADGH_SKIP_VERIFY` | Skip SSL certificate verification for the AdGuardHome connection only | `false` |
 | `PORT` | Server port | `3080` |
 | `HOST` | Listen address. Without credentials only a loopback address (`127.0.0.1` / `localhost` / `::1`) is accepted; a non-loopback value makes the process exit at startup. The Docker image sets `0.0.0.0` | `0.0.0.0` |
 | `ADGH_AUTH_USER` | HTTP Basic username for this panel. Auth is on when this and `ADGH_AUTH_PASSWD` are both non-empty | — |
 | `ADGH_AUTH_PASSWD` | HTTP Basic password for this panel | — |
+| `ADGH_ALLOWED_HOSTS` | Comma-separated hostnames / IPs / CIDRs accepted as the AdGuardHome address in `POST /api/config`. **Replaces the default list instead of adding to it** — if you list a public host, loopback and private ranges are rejected unless you write them too. Read once at startup | `127.0.0.0/8`, `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `::1`, `fc00::/7`, `localhost` |
+
+**Two different trust boundaries.** `ADGH_URL` comes from the environment, written by whoever deploys the container, so it is not checked against `ADGH_ALLOWED_HOSTS`. The allowlist only guards `POST /api/config`, which any client that can reach the dashboard may call. Public addresses, cloud metadata endpoints (`169.254.0.0/16`, `fe80::/10`) and arbitrary hostnames are rejected by default.
 
 ---
 

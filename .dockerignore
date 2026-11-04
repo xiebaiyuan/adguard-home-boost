@@ -3,3 +3,10 @@ node_modules
 *.md
 .env
 coverage
+dist
+docs
+.github
+.idea
+.codegraph
+.scratch
+obsidian-docs

@@ -1,32 +1,27 @@
-# React + TypeScript + Vite
+# @adgh/dashboard
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+The AdGuard Home Boost SPA — Vite + React + Tailwind v4 + Recharts + Phosphor Icons.
 
-Currently, two official plugins are available:
+The built `dist/` is served by the Fastify backend (`packages/server`), so in production this package ships static files only.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Scripts
 
-## React Compiler
+| Command | What it does |
+|---|---|
+| `npm run dev` | Vite dev server on :5173, proxying `/api` to the backend on :3080 |
+| `npm run build` | `tsc -b` then `vite build` into `dist/` |
+| `npm run typecheck` | `tsc -b`, no emit |
+| `npm run test` | Vitest |
+| `npm run test:coverage` | Vitest with v8 coverage and the thresholds in `vitest.config.ts` |
+| `npm run lint` | oxlint |
+| `npm run bench:rerender` | jsdom benchmark of `DomainTable` re-render (500 rows), prints the median per keystroke |
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Run `npm run dev` from the repo root instead of here if you also want the backend — that script starts both processes.
 
-## Expanding the Oxlint configuration
+## Test environment
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+`vitest.config.ts` runs in the `node` environment by default. Files that need a DOM declare `// @vitest-environment jsdom` at the top instead.
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
-```
+`vitest.setup.ts` installs an in-memory `localStorage` when a DOM is present: Node 22+ reserves a lazy `localStorage` global that reads as `undefined` without `--localstorage-file`, and vitest's jsdom environment does not replace it. Application code uses the bare global, so the setup is what makes those tests work.
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+See the repo-root `CLAUDE.md` for architecture, data flow and the version constraint.

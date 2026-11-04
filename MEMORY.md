@@ -1,2 +1,2 @@
-- [AdGuardHome DNS Latency Analysis](CONTEXT.md) — Domain glossary and design decisions
-- [Pre-commit Code Review Rule](memory/pre-commit-code-review.md) — 每次提交前必须执行多维度代码质量审查
+- [Project architecture, commands and review rule](CLAUDE.md) — Monorepo layout, API surface, data flow, version constraint, pre-commit review checklist
+- [Shared API contract](shared/types.ts) — `QueryLogEntry` / `LatencyStats` / `DomainStats` / `DashboardPayload` shared by server and client

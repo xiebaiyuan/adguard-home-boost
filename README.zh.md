@@ -4,7 +4,7 @@
 
 **AdGuard Home 增强型管理面板** — 分析 DNS 延时、实时监控流量、管理 DNS 设置，一个页面全搞定。
 
-[![Release](https://img.shields.io/github/v/release/xiebaiyuan/adguard-home-boost)](https://github.com/xiebaiyuan/adguard-home-boost/releases) ![License](https://img.shields.io/badge/License-MIT-yellow.svg) ![Node](https://img.shields.io/badge/node-%3E%3D18-brightgreen) [![Docker](https://img.shields.io/badge/Docker-ready-2496ed?logo=docker)](https://hub.docker.com/repository/docker/xiebaiyuan/adguard-home-boost) ![Platform](https://img.shields.io/badge/Platform-macOS%20|%20Linux-blue) ![Built with](https://img.shields.io/badge/Built%20with-Vite%20|%20React%20|%20Fastify-blue)
+[![Release](https://img.shields.io/github/v/release/xiebaiyuan/adguard-home-boost)](https://github.com/xiebaiyuan/adguard-home-boost/releases) ![License](https://img.shields.io/badge/License-MIT-yellow.svg) ![Node](https://img.shields.io/badge/node-%3E%3D20.19-brightgreen) [![Docker](https://img.shields.io/badge/Docker-ready-2496ed?logo=docker)](https://hub.docker.com/repository/docker/xiebaiyuan/adguard-home-boost) ![Platform](https://img.shields.io/badge/Platform-macOS%20|%20Linux-blue) ![Built with](https://img.shields.io/badge/Built%20with-Vite%20|%20React%20|%20Fastify-blue)
 
 ## 📸 截图
 
@@ -16,6 +16,8 @@
 ---
 
 ## 🚀 快速开始
+
+`package.json` 的 `engines` 要求 `^20.19.0 || >=22.12.0`；Docker 镜像和 CI 都跑 Node 22。
 
 ```bash
 git clone https://github.com/xiebaiyuan/adguard-home-boost.git
@@ -135,13 +137,13 @@ docker compose pull && docker compose up -d
 │ (Vite+React) │◀────│ + 分析引擎    │◀────│ /control/querylog│
 └─────────────┘     └─────────────┘     └──────────────────┘
                          │ 内存缓存
-                    ┌────▼────┐
-                    │ 5 分钟 TTL │
-                    └─────────┘
+                    ┌────▼──────────────────┐
+                    │ 配置变更或手动刷新才失效 │
+                    └───────────────────────┘
 ```
 
 **前端：** Vite + React + Tailwind v4 + Recharts + Phosphor Icons  
-**后端：** Fastify + TypeScript，8 个 API 端点，进程内存缓存
+**后端：** Fastify + TypeScript，生产环境 9 个 API 端点（非生产环境多一个调试端点），分析结果缓存在内存，配置变更或手动刷新时失效
 
 ---
 
@@ -152,11 +154,14 @@ docker compose pull && docker compose up -d
 | `ADGH_URL` | AdGuard Home 地址 | — |
 | `ADGH_USER` | 用户名 | — |
 | `ADGH_PASSWD` | 密码 | — |
-| `ADGH_SKIP_VERIFY` | 跳过 SSL 验证 | `false` |
+| `ADGH_SKIP_VERIFY` | 只对到 AdGuardHome 那条连接跳过 SSL 验证 | `false` |
 | `PORT` | 监听端口 | `3080` |
 | `HOST` | 监听地址。没配凭据时只接受回环地址（`127.0.0.1` / `localhost` / `::1`），设成非回环地址会在启动时退出。Docker 镜像内置 `0.0.0.0` | `0.0.0.0` |
 | `ADGH_AUTH_USER` | 本面板的 HTTP Basic 用户名。和 `ADGH_AUTH_PASSWD` 都非空才启用 | — |
 | `ADGH_AUTH_PASSWD` | 本面板的 HTTP Basic 密码 | — |
+| `ADGH_ALLOWED_HOSTS` | 允许作为 `POST /api/config` 里 AdGuardHome 地址的主机名单，逗号分隔，元素可以是主机名 / IP / CIDR。**设置后替换默认名单，不是叠加**——写了公网主机就得把回环和私网段一起写上，否则它们会被拒。进程启动时读一次 | `127.0.0.0/8`、`10.0.0.0/8`、`172.16.0.0/12`、`192.168.0.0/16`、`::1`、`fc00::/7`、`localhost` |
+
+**两个不同的信任边界。** `ADGH_URL` 来自环境变量，是部署这个容器的人写的，所以不受 `ADGH_ALLOWED_HOSTS` 约束。白名单只管 `POST /api/config`——能打开面板的客户端就能调用它。默认拒公网地址、云元数据端点（`169.254.0.0/16`、`fe80::/10`）和任意主机名。
 
 ---
 

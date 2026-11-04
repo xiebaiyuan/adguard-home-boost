@@ -18,29 +18,39 @@ npm run dev
 # Run all tests (server then client)
 npm test
 
+# Coverage with thresholds (both packages; falls below = non-zero exit)
+npm run test:coverage
+
 # Server tests only
 npm run test -w @adgh/server
 npm run test:watch -w @adgh/server   # watch mode
-npx vitest run --coverage            # with coverage (run from packages/server/)
 
 # Client tests only
 npm run test -w @adgh/dashboard
 
-# Build all (tsc + vite)
+# Typecheck / lint / build — the same four gates CI runs
+npm run typecheck
+npm run lint
 npm run build
 
-# Lint client
-npm run lint -w @adgh/dashboard
+# Client re-render benchmark (jsdom, 500 rows, median per keystroke)
+npm run bench:rerender -w @adgh/dashboard
 
 # Docker
 docker build -t xiebaiyuan/adguard-home-boost:latest .
 docker compose up -d
 
-# Release — version + tag + push
+# Release — validates, then tags and pushes
 npm version <patch|minor|major> -w @adgh/dashboard
 git add packages/client/package.json
-npm run release   # reads version from packages/client/package.json, tags and pushes
+npm run release   # scripts/release.mjs; --check validates without tagging
 ```
+
+## Runtime
+
+- Node 20.19+ or 22.12+ (`engines` in the root `package.json`). The Docker image and CI both pin Node 22.
+- `packages/client/package.json` is the single version source for three things: the Vite `__APP_VERSION__` define, the release tag, and `GET /api/health`. The health route reads that file at startup from `../../client/package.json` relative to the compiled server, falling back to `process.env.APP_VERSION`, then `unknown` — so the Docker image must ship `packages/client/package.json` or health reports `unknown`.
+- `ADGH_ALLOWED_HOSTS` guards the AdGuardHome address accepted by `POST /api/config` (default: loopback + RFC1918 + IPv6 ULA + `localhost`; setting it **replaces** the list). The `ADGH_URL` environment variable is the operator's own input and is not filtered by it.
 
 ## Version Constraint
 
@@ -49,7 +59,7 @@ npm run release   # reads version from packages/client/package.json, tags and pu
 - `packages/client/package.json` 的 `version` 字段是唯一版本来源，构建时通过 Vite `define` 注入为 `__APP_VERSION__`
 - 发版流程：`npm version <patch|minor|major> -w @adgh/dashboard` → `git add packages/client/package.json` → `git commit` → `npm run release`（自动读取 version 打 tag 并推送）
 - 禁止手动 `git tag` 不打版本号，或打了 tag 不更新 package.json
-- 当前版本：`2.0.0`
+- 当前版本：`3.0.0`
 
 ## Workflow
 
@@ -81,39 +91,41 @@ npm run release   # reads version from packages/client/package.json, tags and pu
 Monorepo with npm workspaces across three packages:
 
 - **`packages/server/`** — Fastify backend (TypeScript, tsx watch for dev)
-  - `app.ts`: Fastify instance factory with 8 API routes
-  - `analyze.ts`: Pure-function analysis engine — groups entries by domain, computes percentile latency stats (P20/P50/P80/P95/P99), cache hit rates, slow query rates
+  - `app.ts`: Fastify instance factory with 9 API routes in production; `/api/debug/cache-check` is registered only outside production
+  - `analyze.ts`: Pure-function analysis engine — groups entries by domain, computes percentile latency stats (P20/P50/P60/P70/P80/P95/P99), cache hit rates, slow query rates, blocked counts and top clients/rules
   - `adguard/client.ts`: Cursor-based pagination client for AdGuardHome `/control/querylog` API (pages of 500, max 100k entries)
   - `adguard/fetcher.ts`: Orchestrates fetch → analyze → group-by-domain pipeline
+  - `adguard/host-allowlist.ts`: Host allowlist for the AdGuardHome address accepted by `POST /api/config` (`ADGH_ALLOWED_HOSTS`)
   - Cached results in process memory; cache invalidates on config change or manual refresh
 
 - **`packages/client/`** — Vite + React SPA (Tailwind v4 + Recharts + Phosphor Icons)
   - Custom CSS color system (glassmorphism, oklch colors, dark/light mode)
-  - `hooks/useAnalysis.ts`: Data fetching lifecycle — auto-restore last config, exponential backoff polling (1s→2s→2s...), renders all sections as always-mounted (CSS hidden when collapsed)
+  - `hooks/useAnalysis.ts`: Data fetching lifecycle — auto-restore last config, exponential backoff polling (1s→2s→4s→8s, then 8s, ~63s total before a visible timeout), `AbortController` cancellation on re-entry and unmount, renders all sections as always-mounted (CSS hidden when collapsed)
   - `hooks/useAdguard.ts`: AdGuardHome management API proxy (protection toggle, filters, rewrites)
+  - `components/DomainTable.tsx`: renders 100 rows first (`ROWS_PER_PAGE`) and appends the next batch on demand
   - Components mounted from page load; CollapseSection uses `display:none` instead of conditional mount to avoid unmount/remount jank
   - `lib/format.ts`: Server-free sorting/filtering of domain stats on the client
   - Bundle manually chunked: vendor / vendor-icons / app (version injected via Vite `define`)
 
-- **`shared/`** — TypeScript types shared between frontend and backend
+- **`shared/`** — TypeScript types shared between frontend and backend (the client imports them directly; `packages/client` no longer keeps a private copy)
   - `QueryLogEntry` (raw AdGuardHome query)
   - `LatencyStats` (percentile + slow rate + severe rate)
-  - `DomainStats` (per-domain aggregate with cached/uncached split)
-  - `AnalysisResult = DomainStats[]`
+  - `DomainStats` (per-domain aggregate with cached/uncached split, blocked counts, top clients/rules)
+  - `AnalysisResult = DomainStats[]`, plus `AnalysisSummary`, `DashboardPayload` and `AdguardStats` for the API responses
 
 ## Key Data Flow
 
-1. **User configures AdGuardHome connection** → `POST /api/config` saves to backend memory + localStorage
+1. **User configures AdGuardHome connection** → `POST /api/config` saves to backend memory + localStorage (the AdGuardHome address is checked against `ADGH_ALLOWED_HOSTS` first)
 2. **User clicks refresh** → `POST /api/analysis/refresh` → backend fetches query log via cursor pagination → `analyze()` groups by domain → caches result in memory (async, 202 Accepted)
 3. **Frontend polls** `GET /api/analysis/summary` with exponential backoff until `ready: true`
-4. **Frontend renders** by calling `GET /api/analysis/domains?limit=500` — all sorting/filtering happens in `lib/format.ts` on the client
+4. **Frontend renders** from a single `GET /api/analysis/dashboard` call — it returns the pre-aggregated KPIs plus up to 500 domain rows; sorting, filtering and paging then happen in the browser (`lib/format.ts`, `DomainTable`)
 5. **Domain drill-down** → `GET /api/analysis/domain-detail?domain=...` (client sources, block rules, upstream breakdown + recent entries)
 
 ## Analysis Engine (src/analyze.ts)
 
 Pure function `analyze(entries: QueryLogEntry[]) → DomainStats[]`:
 - Single-pass grouping by `question.name`
-- Per-domain single-pass aggregation (cached count, uncached latencies, query types)
+- Per-domain single-pass aggregation (cached count, uncached latencies, query types, blocked reason buckets, clients, block rules)
 - LatencyStats computed via D-def percentile interpolation on sorted array, with slow (>500ms) and severe (>1s) rates computed in a single pass
 
 ## Frontend State Management
@@ -128,8 +140,8 @@ No global state library. Component-local state + hooks:
 
 - Analysis engine designed for 10k–100k entry datasets, single-pass O(n) algorithms
 - Backend caches analysis results in process memory (not persisted)
-- Recharts and phosphor-icons auto-chunked by Vite build config
-- Skeleton screens removed in favor of content placeholder + CSS fade-in
+- Recharts and phosphor-icons are split into lazy chunks by the Vite build config
+- Loading placeholders are animated blocks (`@keyframes n` / `.n-bg` in `index.css`) that fade into content; there is no separate skeleton-screen component
 
 ## Agent skills
 
@@ -143,4 +155,4 @@ Five canonical triage roles mapped to label strings. See `obsidian-docs/agents/t
 
 ### Domain docs
 
-Single context: one `GLOSSARY.md` at the repo root plus `obsidian-docs/adr/`. See `obsidian-docs/agents/domain.md`.
+Read `obsidian-docs/agents/domain.md` for how domain context is expected to be kept. This repo currently has no root `GLOSSARY.md` and no `obsidian-docs/adr/` directory; the vocabulary lives in `shared/types.ts` and the architecture notes above. Add the glossary before running a domain-modelling flow that expects one.
