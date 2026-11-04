@@ -43,8 +43,12 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Test
-        run: npm test
-
+      # Build 必须排在 Test 前面：服务端有两个用例依赖前端构建产物
+      # （static.test.ts 扫 packages/client/dist/assets；hardening.test.ts 断言
+      # 带上凭据访问 / 返回 index.html）。CI 是干净树、没有 dist，顺序反了就会
+      # 一个 ENOENT、一个 404。本地因为 dist 一直在，所以发现不了。
       - name: Build
         run: npm run build
+
+      - name: Test
+        run: npm test
