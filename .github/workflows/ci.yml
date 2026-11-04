@@ -1,0 +1,47 @@
+name: CI
+
+# push 与 pull_request 都跑；同时允许被 docker-publish.yml 以 reusable workflow 调用（C13）。
+# 只盯分支：tag 推送由 docker-publish.yml 走 workflow_call 触发，避免同一次发版跑两遍。
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_call:
+
+jobs:
+  ci:
+    name: typecheck / lint / test / build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          # 显式钉版本，与 Dockerfile 的 node:22-alpine 对齐，不吃 runner 默认版
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Assert npm ls has no invalid entries
+        run: |
+          npm ls --depth=0
+          if npm ls --depth=0 2>&1 | grep -q 'invalid'; then
+            echo '::error::npm ls --depth=0 报出 invalid 依赖'
+            exit 1
+          fi
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
