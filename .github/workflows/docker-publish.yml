@@ -74,6 +74,12 @@ jobs:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_REPO: ${{ github.repository }}
     steps:
+      # fetch-depth: 0 —— 说明要读「上一个 tag 到本 tag」的提交，浅克隆拿不到 tag 历史。
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       # 幂等：tag 被删了重推时 release 已经存在，跳过而不是让 job 红。
       - name: Create release from tag
         run: |
@@ -83,5 +89,34 @@ jobs:
             echo "release $tag 已存在，跳过"
             exit 0
           fi
-          gh release create "$tag" --verify-tag --title "$tag" --generate-notes
+
+          # 本仓库直接往 master 提交、不走 PR，GitHub 的 --generate-notes 只会生成
+          # 一纸 compare 链接（自动说明靠已合并 PR 拼），所以这里自己按提交列表拼。
+          prev=""
+          if git describe --tags --abbrev=0 "${tag}^" >/dev/null 2>&1; then
+            prev="$(git describe --tags --abbrev=0 "${tag}^")"
+            range="${prev}..${tag}"
+          else
+            range="${tag}"
+          fi
+
+          notes="$(mktemp)"
+          {
+            echo "## 这次改了什么"
+            echo
+            # 发版机械提交（chore(release): x.y.z）不写进说明
+            git log --no-merges --pretty='- %s（`%h`）' "$range" | grep -v '^- chore(release)' || true
+            echo
+            echo "## 镜像"
+            echo
+            echo '```bash'
+            echo "docker pull ${REGISTRY}/${IMAGE_NAME}:${tag#v}"
+            echo '```'
+            if [ -n "$prev" ]; then
+              echo
+              echo "**完整对比**：https://github.com/${GH_REPO}/compare/${prev}...${tag}"
+            fi
+          } > "$notes"
+
+          gh release create "$tag" --verify-tag --title "$tag" --notes-file "$notes"
           echo "已建 https://github.com/${GH_REPO}/releases/tag/${tag}"
