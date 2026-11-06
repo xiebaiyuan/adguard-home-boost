@@ -44,6 +44,9 @@ docker compose up -d
 npm version <patch|minor|major> -w @adgh/dashboard
 git add packages/client/package.json
 npm run release   # scripts/release.mjs; --check validates without tagging
+# tag 推上去之后 CI 自己接手：docker-publish.yml 先跑 CI，再推镜像，
+# 最后按 tag 建 GitHub Release（说明由 GitHub 从上一个 tag 以来的提交生成）。
+# 手工补建旧 tag 的 release：gh release create vX.Y.Z --verify-tag --generate-notes
 ```
 
 ## Runtime

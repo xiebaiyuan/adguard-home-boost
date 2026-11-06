@@ -57,3 +57,31 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  # tag 推送后自动建 GitHub Release，说明由 GitHub 按上个 tag 以来的提交生成。
+  # 放在镜像之后：release 页面承诺的镜像得先真推上去。
+  # workflow_dispatch 没有 tag 引用，这个 job 直接跳过（if 条件）。
+  # GITHUB_TOKEN 需要 write 权限才能建 release；仓库默认是 read，所以按 job 单独提权。
+  # gh 不依赖 checkout：仓库坐标由 GH_REPO 给出，--generate-notes 走服务端生成。
+  release:
+    name: Create GitHub Release
+    needs: [ci, build-and-push]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      # 幂等：tag 被删了重推时 release 已经存在，跳过而不是让 job 红。
+      - name: Create release from tag
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME}"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "release $tag 已存在，跳过"
+            exit 0
+          fi
+          gh release create "$tag" --verify-tag --title "$tag" --generate-notes
+          echo "已建 https://github.com/${GH_REPO}/releases/tag/${tag}"
